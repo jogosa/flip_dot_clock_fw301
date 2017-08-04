@@ -25,7 +25,7 @@ if not "%~1" == "" goto debugFile
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "M:\3_DOC\FW_301\FW_301\MODIFIED_SDK_13.0.0_04a0bfd\examples\ble_peripheral\flipdot_fw301\pca10040\s132\iar\settings\ble_app_uart_pca10040_s132.nrf52832_xxaa.general.xcl" --backend -f "M:\3_DOC\FW_301\FW_301\MODIFIED_SDK_13.0.0_04a0bfd\examples\ble_peripheral\flipdot_fw301\pca10040\s132\iar\settings\ble_app_uart_pca10040_s132.nrf52832_xxaa.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "M:\3_DOC\FW_301\flip_dot_clock_fw301\MODIFIED_SDK_13.0.0_04a0bfd\examples\ble_peripheral\flipdot_fw301\pca10040\s132\iar\settings\ble_app_uart_pca10040_s132.nrf52832_xxaa.general.xcl" --backend -f "M:\3_DOC\FW_301\flip_dot_clock_fw301\MODIFIED_SDK_13.0.0_04a0bfd\examples\ble_peripheral\flipdot_fw301\pca10040\s132\iar\settings\ble_app_uart_pca10040_s132.nrf52832_xxaa.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "M:\3_DOC\FW_301\FW_301\MODIFIED_SDK_13.0.0_04a0bfd\examples\ble_peripheral\flipdot_fw301\pca10040\s132\iar\settings\ble_app_uart_pca10040_s132.nrf52832_xxaa.general.xcl" "--debug_file=%~1" --backend -f "M:\3_DOC\FW_301\FW_301\MODIFIED_SDK_13.0.0_04a0bfd\examples\ble_peripheral\flipdot_fw301\pca10040\s132\iar\settings\ble_app_uart_pca10040_s132.nrf52832_xxaa.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "M:\3_DOC\FW_301\flip_dot_clock_fw301\MODIFIED_SDK_13.0.0_04a0bfd\examples\ble_peripheral\flipdot_fw301\pca10040\s132\iar\settings\ble_app_uart_pca10040_s132.nrf52832_xxaa.general.xcl" "--debug_file=%~1" --backend -f "M:\3_DOC\FW_301\flip_dot_clock_fw301\MODIFIED_SDK_13.0.0_04a0bfd\examples\ble_peripheral\flipdot_fw301\pca10040\s132\iar\settings\ble_app_uart_pca10040_s132.nrf52832_xxaa.driver.xcl" 
 
 @echo off 
 :end

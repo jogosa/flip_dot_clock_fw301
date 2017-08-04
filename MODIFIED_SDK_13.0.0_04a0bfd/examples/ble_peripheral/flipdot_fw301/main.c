@@ -2085,9 +2085,15 @@ void command_responder(uint8_t * bt_received_string_data)
             break;
             case 'm':
             {
-                uint8_t reply_string11[7]="sm,***\n";
+            uint8_t reply_string11[7]="sm,***\n";
 
-                if(ee_settings[ee_cal]&0x40)
+                uint8_t read_calib[1]= {RTC_OFFSET};
+
+                i2c_tx(PCF85063TP,read_calib,sizeof(read_calib),true);
+                i2c_rx(PCF85063TP,read_calib,sizeof(read_calib));
+
+                
+                if(read_calib[0]&0x40)
                 {
                     reply_string11[3]='-';
                 }
@@ -2095,8 +2101,8 @@ void command_responder(uint8_t * bt_received_string_data)
                 {
                     reply_string11[3]='+';
                 }
-                reply_string11[4]=((calib_to_ppm_table[ee_settings[ee_cal]&0x3F]%100)/10)+'0';
-                reply_string11[5]=(calib_to_ppm_table[ee_settings[ee_cal]&0x3F]%10)+'0';
+                reply_string11[4]=((calib_to_ppm_table[read_calib[0]&0x3F]%100)/10)+'0';
+                reply_string11[5]=(calib_to_ppm_table[read_calib[0]&0x3F]%10)+'0';
                 ble_nus_string_send(&m_nus,reply_string11,sizeof(reply_string11));
                 break;
             }
