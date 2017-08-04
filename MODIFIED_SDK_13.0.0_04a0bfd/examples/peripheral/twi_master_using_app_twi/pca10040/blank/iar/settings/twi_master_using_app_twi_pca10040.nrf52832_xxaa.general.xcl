@@ -1,0 +1,13 @@
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\arm\bin\armproc.dll" 
+
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\arm\bin\armjlink2.dll" 
+
+"M:\3_DOC\nRF5_SDK_13.0.0_04a0bfd\examples\peripheral\twi_master_using_app_twi\pca10040\blank\iar\_build\twi_master_using_app_twi_pca10040.out" 
+
+--plugin "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\arm\bin\armbat.dll" 
+
+--device_macro "C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\arm\config\debugger\NordicSemi\nRF52.dmac" 
+
+
+
+
