@@ -109,7 +109,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 
 
 
-#define CURRENT_VERSION_TOKEN           '~'                             //change everytime there is a need to restore eeprom settings to defaults
+#define CURRENT_VERSION_TOKEN           '>'                             //change everytime there is a need to restore eeprom settings to defaults
 #define DEVICE_NAME                     "FLIP.CLOCK BLUE"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 #define CURRENT_SKU                     'B'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 
@@ -189,12 +189,11 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define DEADLINEDOTS    			'1'
 #define TIMEDOTS    			'2'
 #define TIMECLOCK    			'3'
-#define ANIMAMTION    			'4'
-#define TEMPERATURE    			'5'
-#define MESSAGE    				'6'
-#define MINUTES_ONLY 			'7'
-#define HOURS_ONLY 				'8'
-#define HUMIDITY 				'9'
+#define IMAGEDOTS    			'4'
+#define MESSAGE    			'5'
+#define WEATHER    				'6'
+#define HOURS_ONLY 			'7'
+#define MINUTES_ONLY 				'8'
 #define PAUSE                                   'A'
 
 #define HRS_24    				'1'
@@ -298,8 +297,6 @@ static volatile bool m_xfer_done = false;
 /* TWI instance. */
 static const nrf_drv_twi_t m_twi = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE_ID);
 
-/* Buffer for samples read from temperature sensor. */
-//static uint8_t m_sample;
 
 
 /**
@@ -1267,7 +1264,7 @@ void command_responder(uint8_t * bt_received_string_data)
         switch(bt_received_string_data[0])
         {
         case 'p':
-            if(bt_received_string_data[1]=='q')
+            if(bt_received_string_data[1]=='q')//@SLW6ON
             {
                 if(bt_received_string_data[3]=='0')
                 {
@@ -1331,7 +1328,7 @@ void command_responder(uint8_t * bt_received_string_data)
         case 's':
             switch(bt_received_string_data[1])
             {
-            case 'a'://set the time and date
+            case 'a'://@V060L4
                 PCF85063_gettime();
 
                 parameter_number_handler(bt_received_string_data,59,0,3);
@@ -1377,7 +1374,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
 
                 break;
-            case 'c'://set the deadline time and date
+            case 'c'://@NKX3DI
                 PCF85063_gettime();
 
                 parameter_number_handler(bt_received_string_data,59,0,3);
@@ -1446,7 +1443,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     }
                 }
                 break;
-            case 'd':
+            case 'd'://@GTVOQS
                 if(bt_received_string_data[3]=='0' || bt_received_string_data[3]=='1')
                 {
                     store_ee_settings_partial(ee_timenightmode,bt_received_string_data[3]);
@@ -1457,7 +1454,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     command_reply_nope();
                 }
                 break;
-            case 'e':
+            case 'e'://@GTU86U
                 parameter_number_handler(bt_received_string_data,59,0,3);
                 if(number_handler_status !=NaN)
                 {
@@ -1472,7 +1469,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     }
                 }
                 break;
-            case 'f':
+            case 'f'://@FLC0MG
                 parameter_number_handler(bt_received_string_data,59,0,3);
                 if(number_handler_status !=NaN)
                 {
@@ -1487,7 +1484,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     }
                 }
                 break;
-            case 'g':
+            case 'g'://@GXTP7I
                 if(bt_received_string_data[3]=='0' || bt_received_string_data[3]=='1')
                 {
                     store_ee_settings_partial(ee_darknightmode,bt_received_string_data[3]);
@@ -1498,7 +1495,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     command_reply_nope();
                 }
                 break;
-            case 'h':
+            case 'h'://@UCNXSH
                 parameter_number_handler(bt_received_string_data,10,0,3);
                 if(number_handler_status !=NaN)
                 {
@@ -1507,7 +1504,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     command_reply_ok();
                 }
                 break;
-            case 'i':
+            case 'i'://@HO88XM
                 parameter_number_handler(bt_received_string_data,10,0,3);
                 if(number_handler_status !=NaN)
                 {
@@ -1516,7 +1513,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     command_reply_ok();
                 }
                 break;
-            case 'j':
+            case 'j'://@ZKQ9B3
                 if(bt_received_string_data[3]==HRS_12 || bt_received_string_data[3]==HRS_24)
                 {
                     if(bt_received_string_data[3]==HRS_24 && ee_settings[ee_t_format]==HRS_12)
@@ -1542,10 +1539,10 @@ void command_responder(uint8_t * bt_received_string_data)
                     command_reply_nope();
                 }
                 break;
-            case 'k':
+            case 'k'://@NQSFDQ
 
                 break;
-            case 'l':
+            case 'l'://@6V886A
                 parameter_number_handler(bt_received_string_data,10,1,3);
                 if(number_handler_status !=NaN)
                 {
@@ -1553,7 +1550,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     command_reply_ok();
                 }
                 break;
-            case 'm':
+            case 'm'://@UU0FEH
                 switch(bt_received_string_data[3])
                 {
                 case '+':
@@ -1589,8 +1586,8 @@ void command_responder(uint8_t * bt_received_string_data)
         case 'w':
             switch(bt_received_string_data[1])
             {
-            case 'a':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==ANIMAMTION || bt_received_string_data[3]==TEMPERATURE || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE  || bt_received_string_data[3]==MINUTES_ONLY  || bt_received_string_data[3]==HOURS_ONLY)
+            case 'a'://@A43OJD
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE  || bt_received_string_data[3]==MINUTES_ONLY  || bt_received_string_data[3]==HOURS_ONLY)
                 {
                     store_ee_settings_partial(ee_show1,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1606,7 +1603,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 break;
             case 'b':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==ANIMAMTION || bt_received_string_data[3]==TEMPERATURE || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
                 {
                     store_ee_settings_partial(ee_show2,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1622,7 +1619,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 break;
             case 'c':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==ANIMAMTION || bt_received_string_data[3]==TEMPERATURE || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
                 {
                     store_ee_settings_partial(ee_show3,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1638,7 +1635,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 break;
             case 'd':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==ANIMAMTION || bt_received_string_data[3]==TEMPERATURE || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
                 {
                     store_ee_settings_partial(ee_show4,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1654,7 +1651,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 break;
             case 'e':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==ANIMAMTION || bt_received_string_data[3]==TEMPERATURE || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
                 {
                     store_ee_settings_partial(ee_show5,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1670,7 +1667,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 break;
             case 'f':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==ANIMAMTION || bt_received_string_data[3]==TEMPERATURE || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
                 {
                     store_ee_settings_partial(ee_show6,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1693,10 +1690,10 @@ void command_responder(uint8_t * bt_received_string_data)
         case 'c':
             switch(bt_received_string_data[1])
             {
-            case 'a':
+            case 'a'://@FSR3HA
                 display_symbol(bt_received_string_data[3],0,BRO0);
                 break;
-            case 'b':
+            case 'b'://@U3KIEK
                 if(bt_received_string_data[3]=='0')
                 {
                     disp_fill_buffer(BRO0);
@@ -1864,7 +1861,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     command_reply_nope();
                 }
                 break;
-            case 'c':
+            case 'c'://@ONMESS
                 if(bt_received_string_data[3]=='0')
                 {
                     draw_mode=false;
@@ -1886,7 +1883,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     command_reply_nope();
                 }
                 break;
-            case 'd':
+            case 'd'://@D1FVG4
                 parameter_number_handler(bt_received_string_data,20,0,3);
                 if(number_handler_status !=NaN)
                 {
@@ -1894,7 +1891,7 @@ void command_responder(uint8_t * bt_received_string_data)
                     command_reply_ok();
                 }
                 break;
-            case 'e':
+            case 'e'://@D71FLG
                 parameter_number_handler(bt_received_string_data,20,0,3);
                 if(number_handler_status !=NaN)
                 {
@@ -1914,23 +1911,24 @@ void command_responder(uint8_t * bt_received_string_data)
         switch(bt_received_string_data[0])
         {
         case 'p':
-            if(bt_received_string_data[1]=='q')
+            if(bt_received_string_data[1]=='q')//@Q970G8
             {
-                uint8_t reply_string[7]="pq,*,*\n";
+                uint8_t reply_string[13]="pq,*,*,*,*,*\n";
                 reply_string[3]=CURRENT_SKU;
-
+                reply_string[5]=CURRENT_VERSION_TOKEN;//VERSION
+                reply_string[7]=current_bro+'0';//BRONUMBER
+                reply_string[9]=brocount+'0';//BROTOTAL                                            
+                
                 if(nrf_gpio_pin_read(AMB_LT_INT))
                 {
-                    reply_string[5]='1';
+                    reply_string[11]='1';
                 }
                 else
                 {
-                    reply_string[5]='0';
+                    reply_string[11]='0';
                 }
 
-
                 ble_nus_string_send(&m_nus,reply_string,sizeof(reply_string));
-
 
                 if(ee_settings[ee_sys_calibrationtoken]!='1')
                 {
@@ -1940,7 +1938,6 @@ void command_responder(uint8_t * bt_received_string_data)
                 {
                     ble_nus_string_send(&m_nus, "TIME_REQUEST\n",13);
                 }
-
             }
             else
             {
@@ -1951,7 +1948,7 @@ void command_responder(uint8_t * bt_received_string_data)
 
             switch(bt_received_string_data[1])
             {
-            case 'a':
+            case 'a'://@8U11CV
             {
                 PCF85063_gettime();
 
@@ -1979,7 +1976,7 @@ void command_responder(uint8_t * bt_received_string_data)
 
                 break;
             }
-            case 'c':
+            case 'c'://@KTSTP6
             {
                 PCF85063_gettime();
 
@@ -2006,7 +2003,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 ble_nus_string_send(&m_nus,reply_string2,sizeof(reply_string2));
                 break;
             }
-            case 'd':
+            case 'd'://@VJ2B2X
             {
                 uint8_t reply_string3[5]="sd,*\n";
                 reply_string3[3]=ee_settings[ee_timenightmode];
@@ -2014,7 +2011,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 break;
             }
 
-            case 'e':
+            case 'e'://@XU58CJ
             {
                 uint8_t reply_string4[9]="se,**,**\n";
 
@@ -2027,7 +2024,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 ble_nus_string_send(&m_nus,reply_string4,sizeof(reply_string4));
                 break;
             }
-            case 'f':
+            case 'f'://@AL3N9P
             {
                 uint8_t reply_string5[9]="sf,**,**\n";
 
@@ -2041,14 +2038,14 @@ void command_responder(uint8_t * bt_received_string_data)
                 break;
             }
 
-            case 'g':
+            case 'g'://@Y8LU7Y
             {
                 uint8_t reply_string6[5]="sg,*\n";
                 reply_string6[3]=ee_settings[ee_darknightmode];
                 ble_nus_string_send(&m_nus,reply_string6,sizeof(reply_string6));
                 break;
             }
-            case 'h':
+            case 'h'://@D8HTIB
             {
                 uint8_t reply_string7[6]="sh,**\n";
                 reply_string7[3]=((ee_settings[ee_darknightmode_lowlimit]%100)/10)+'0';
@@ -2056,7 +2053,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 ble_nus_string_send(&m_nus,reply_string7,sizeof(reply_string7));
                 break;
             }
-            case 'i':
+            case 'i'://@LA255U
             {
                 uint8_t reply_string8[6]="si,**\n";
                 reply_string8[3]=((ee_settings[ee_darknightmode_highlimit]%100)/10)+'0';
@@ -2064,17 +2061,17 @@ void command_responder(uint8_t * bt_received_string_data)
                 ble_nus_string_send(&m_nus,reply_string8,sizeof(reply_string8));
                 break;
             }
-            case 'j':
+            case 'j'://@WRYH0H
             {
                 uint8_t reply_string9[5]="sj,*\n";
                 reply_string9[3]=ee_settings[ee_t_format];
                 ble_nus_string_send(&m_nus,reply_string9,sizeof(reply_string9));
                 break;
             }
-            case 'k':
+            case 'k'://@H4QO0M
 
                 break;
-            case 'l':
+            case 'l'://@BRDAH7
             {
                 uint8_t reply_string10[6]="sl,**\n";
                 reply_string10[3]=((ee_settings[ee_msg_speed]%100)/10)+'0';
@@ -2083,7 +2080,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 break;
             }
             break;
-            case 'm':
+            case 'm'://@2T67HB
             {
             uint8_t reply_string11[7]="sm,***\n";
 
@@ -2115,7 +2112,7 @@ void command_responder(uint8_t * bt_received_string_data)
         case 'w':
             switch(bt_received_string_data[1])
             {
-            case 'a':
+            case 'a'://@ETG35Z
             {
                 uint8_t reply_string12[8]="wa,*,**\n";
                 reply_string12[3]=ee_settings[ee_show1];
@@ -2126,7 +2123,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 ble_nus_string_send(&m_nus,reply_string12,sizeof(reply_string12));
                 break;
             }
-            case 'b':
+            case 'b'://@UWXAUJ
             {
                 uint8_t reply_string13[8]="wb,*,**\n";
                 reply_string13[3]=ee_settings[ee_show2];
@@ -2138,7 +2135,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 break;
             }
             break;
-            case 'c':
+            case 'c'://@UAU47I
             {
                 uint8_t reply_string14[8]="wc,*,**\n";
                 reply_string14[3]=ee_settings[ee_show3];
@@ -2150,7 +2147,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 break;
             }
             break;
-            case 'd':
+            case 'd'://@E728X5
             {
                 uint8_t reply_string15[8]="wd,*,**\n";
                 reply_string15[3]=ee_settings[ee_show4];
@@ -2162,7 +2159,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 break;
             }
             break;
-            case 'e':
+            case 'e'://@3XKC47
             {
                 uint8_t reply_string16[8]="we,*,**\n";
                 reply_string16[3]=ee_settings[ee_show5];
@@ -2174,7 +2171,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 break;
             }
             break;
-            case 'f':
+            case 'f'://@0W7A12
             {
                 uint8_t reply_string17[8]="wf,*,**\n";
                 reply_string17[3]=ee_settings[ee_show6];
@@ -2194,7 +2191,7 @@ void command_responder(uint8_t * bt_received_string_data)
         case 'c':
             switch(bt_received_string_data[1])
             {
-            case 'c':
+            case 'c'://@1249TQ
             {
                 uint8_t reply_string18[5]="cc,*\n";
 
@@ -2777,7 +2774,7 @@ static void show_hours_only(uint16_t howlong_ms)
 
 }
 
-static void show_animation(uint16_t howlong_ms)
+static void show_imagedots(uint16_t howlong_ms)
 {
 
 
@@ -2786,7 +2783,7 @@ static void show_animation(uint16_t howlong_ms)
 }
 //
 
-static void show_temperature(uint16_t howlong_ms)
+static void show_WEATHER(uint16_t howlong_ms)
 {
 
 
@@ -2795,13 +2792,7 @@ static void show_temperature(uint16_t howlong_ms)
 }
 //done
 
-static void show_humidity(uint16_t howlong_ms)
-{
 
-
-
-
-}
 
 static bool check_timesleepmode(void)
 {
@@ -2865,11 +2856,11 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
         case TIMECLOCK:
             show_timeclock(howlong_ms);
             break;
-        case ANIMAMTION:
-            show_animation(howlong_ms);
+        case IMAGEDOTS:
+            show_imagedots(howlong_ms);
             break;
-        case TEMPERATURE:
-            show_temperature(howlong_ms);
+        case WEATHER:
+            show_WEATHER(howlong_ms);
             break;
         case MESSAGE:
             show_message(howlong_ms);
@@ -2880,10 +2871,6 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
         case HOURS_ONLY:
             show_hours_only(howlong_ms);
             break;
-        case HUMIDITY:
-            show_humidity(howlong_ms);
-            break;
-
         case NOTHING:
             break;
 
