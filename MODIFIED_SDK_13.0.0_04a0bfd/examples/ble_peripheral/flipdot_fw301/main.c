@@ -517,9 +517,74 @@ static void calibration_enter(void)
 
 }
 
+static void uart_send(uint8_t * p_data, uint16_t length)
+{
+    uint32_t err_code;
+
+    for (uint32_t i = 0; i < length; i++)
+    {
+        do
+        {
+            err_code = app_uart_put(p_data[i]);
+            if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
+            {
+                NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. \r\n", err_code);
+                APP_ERROR_CHECK(err_code);
+            }
+        }
+        while (err_code == NRF_ERROR_BUSY);
+    }
+    if (p_data[length-1] == '\r')
+    {
+        while (app_uart_put('\n') == NRF_ERROR_BUSY);
+    }
+
+    // nrf_gpio_pin_write(RS_485_DIR,0);//disable tx on the RS-485
+
+}
+
+static void disp_refresh(void)
+{
+    unsigned char i;
+
+    disp_tx_buffer[3]=0;
+    disp_tx_buffer[4]=0;
+    disp_tx_buffer[5]=0;
+    disp_tx_buffer[6]=0;
+    disp_tx_buffer[7]=0;
+    disp_tx_buffer[8]=0;
+    disp_tx_buffer[9]=0;
+
+    for (i=0; i<7; i++)
+    {
+
+        //mirror image and copy
+        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x01)<<6;
+        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x02)<<4;
+        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x04)<<2;
+        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x08);
+        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x10)>>2;
+        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x20)>>4;
+        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x40)>>6;
+    }
+    uart_send(disp_tx_buffer,sizeof(disp_tx_buffer));
+}
+
+static void disp_clear_buffer(uint8_t bro)
+{
+    uint8_t i;
+    for (i=0; i<7; i++)
+    {
+        display_buffer[i+bro_disp_buf_addr[bro]]=0x00;
+    }
+};
 //FACTORY TEST MODE
 static void factory_test_enter(void)
 {
+    disp_clear_buffer(BRO0);
+    disp_clear_buffer(BRO1);
+    disp_clear_buffer(BRO2);
+    disp_refresh();
 
     draw_mode=true;
     factory_check_mode=true;
@@ -605,58 +670,8 @@ static void ee_i2c_mass_write(uint8_t addr, uint8_t *datax, uint8_t size)
         nrf_delay_ms(6);
     }
 }
-static void uart_send(uint8_t * p_data, uint16_t length)
-{
-    uint32_t err_code;
 
-    for (uint32_t i = 0; i < length; i++)
-    {
-        do
-        {
-            err_code = app_uart_put(p_data[i]);
-            if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
-            {
-                NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. \r\n", err_code);
-                APP_ERROR_CHECK(err_code);
-            }
-        }
-        while (err_code == NRF_ERROR_BUSY);
-    }
-    if (p_data[length-1] == '\r')
-    {
-        while (app_uart_put('\n') == NRF_ERROR_BUSY);
-    }
 
-    // nrf_gpio_pin_write(RS_485_DIR,0);//disable tx on the RS-485
-
-}
-
-static void disp_refresh(void)
-{
-    unsigned char i;
-
-    disp_tx_buffer[3]=0;
-    disp_tx_buffer[4]=0;
-    disp_tx_buffer[5]=0;
-    disp_tx_buffer[6]=0;
-    disp_tx_buffer[7]=0;
-    disp_tx_buffer[8]=0;
-    disp_tx_buffer[9]=0;
-
-    for (i=0; i<7; i++)
-    {
-
-        //mirror image and copy
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x01)<<6;
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x02)<<4;
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x04)<<2;
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x08);
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x10)>>2;
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x20)>>4;
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x40)>>6;
-    }
-    uart_send(disp_tx_buffer,sizeof(disp_tx_buffer));
-}
 
 static void disp_invert_buffer(uint8_t bro)
 {
@@ -874,14 +889,7 @@ uint8_t parameter_number_handler(uint8_t* string_data, uint8_t maxlimit,uint8_t 
     return 0;
 }
 
-static void disp_clear_buffer(uint8_t bro)
-{
-    uint8_t i;
-    for (i=0; i<7; i++)
-    {
-        display_buffer[i+bro_disp_buf_addr[bro]]=0x00;
-    }
-};
+
 
 static void disp_fill_buffer(uint8_t bro)
 {
@@ -2923,7 +2931,6 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
   
   
     if((!draw_mode) && (!(dark_mode_check&&(ee_settings[ee_darknightmode]-'0'))) && (!((ee_settings[ee_timenightmode]-'0') && check_timesleepmode())))
-
     {
         switch(what)
         {
@@ -2964,6 +2971,10 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
             break;
         }
 
+    }
+    else if(draw_mode)
+    {
+      
     }
     else
     {
