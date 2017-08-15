@@ -1124,6 +1124,7 @@ static void PCF85063_gettime(void)
 
 }
 
+//@FZ1HJM
 static void PCF85063_settime(void)
 {
     uint8_t i;
@@ -2455,7 +2456,7 @@ void display_dots(unsigned char numx, unsigned char invert)
 }
 
 
-
+//@DCX5OH
 //to-do: remake for bro system
 static void show_message(uint8_t howlong)
 {
@@ -2781,26 +2782,6 @@ static void show_timeclock(uint16_t howlong_ms)
       display_img(bad_clock_img, false, BRO0);
       nrf_delay_ms(howlong_ms);
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-  
-
-
 
 }
 //
@@ -2844,7 +2825,7 @@ static void show_hours_only(uint16_t howlong_ms)
     disp_clear_buffer(BRO2);
 
 }
-
+//@QD08WZ
 static void show_imagedots(uint16_t howlong_ms)
 {
 
@@ -2852,8 +2833,8 @@ static void show_imagedots(uint16_t howlong_ms)
 
 
 }
-//
 
+//@QM2VU5
 static void show_WEATHER(uint16_t howlong_ms)
 {
 
@@ -2905,9 +2886,6 @@ static bool check_timesleepmode(void)
             return false;
         }
     }
-
-
-
 
 }
 
