@@ -2599,8 +2599,6 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
       nrf_delay_ms(howlong_ms);
     }
     
-    
-
 }
 
 
@@ -2790,11 +2788,9 @@ static void show_timeclock(uint16_t howlong_ms)
 static void show_minutes_only(uint16_t howlong_ms)
 {
 
-
     PCF85063_gettime();
     display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
     nrf_delay_ms(howlong_ms);
-
 
     disp_clear_buffer(BRO0);
     disp_clear_buffer(BRO1);
@@ -2802,7 +2798,6 @@ static void show_minutes_only(uint16_t howlong_ms)
 
 //   display_symbol(' ',time_sep_speed_table[ee_settings[ee_t_speed]],0);
     display_busy=0;
-
 
 }
 
@@ -2835,7 +2830,7 @@ static void show_imagedots(uint16_t howlong_ms)
 }
 
 //@QM2VU5
-static void show_WEATHER(uint16_t howlong_ms)
+static void show_weather(uint16_t howlong_ms)
 {
 
 
@@ -2925,7 +2920,7 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
             show_imagedots(howlong_ms);
             break;
         case WEATHER:
-            show_WEATHER(howlong_ms);
+            show_weather(howlong_ms);
             break;
         case MESSAGE:
             show_message(howlong_ms);
@@ -2960,6 +2955,7 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
             display_img(sleep_img, false, BRO0);
             display_img(sleep_img, false, BRO1);
             display_img(sleep_img, false, BRO2);
+            nrf_delay_ms(howlong_ms);
     }
 }
 
