@@ -109,7 +109,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 
 
 
-#define CURRENT_VERSION_TOKEN           '>'                             //change everytime there is a need to restore eeprom settings to defaults
+#define CURRENT_VERSION_TOKEN           '^'                             //change everytime there is a need to restore eeprom settings to defaults
 #define DEVICE_NAME                     "FLIP.CLOCK BLUE"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 #define CURRENT_SKU                     'B'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 
@@ -146,7 +146,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define ee_msg_len              5
 #define reserved2              6
 #define ee_sys_calibrationtoken 7
-#define ee_sys_timesettoken     8
+#define reserved4               8
 #define ee_darknightmode_lowlimit         9
 #define ee_darknightmode_highlimit        10
 #define ee_darknightmode    	11
@@ -255,6 +255,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define mask_mon_t 				0x10
 #define mask_yr_u 				0x0F
 #define mask_yr_t 				0xF0
+#define mask_clock_integrity                    0x80
 
 //rtc time array addresses
 #define rtctime_sec   			0
@@ -361,8 +362,8 @@ uint8_t display_buffer[21] =
     0xee, 0xb4, 0x72, 0xa5, 0xbb, 0x21, 0x0d//bro3
 };
 
-bool display_busy=false,countdown_timer_running=false,countdown_timer_setup_mode=false,draw_mode=false,factory_check_mode=false;
-uint8_t menustep=0,countm=0,stepu=0,zfrequency_multiplier=1, current_bro=BRO0, brocount=1,ddl_status=0;
+bool display_busy=false,countdown_timer_running=false,countdown_timer_setup_mode=false,draw_mode=false,factory_check_mode=false, time_correct=false, dark_mode_check=false;
+uint8_t countm=0, current_bro=BRO0, brocount=1,ddl_status=0;
 uint16_t refresh_speed_scroll,refresh_speed_time,refresh_speed_time_sep,stepj=0, countdown_timer=0,times_ups=0;
 uint32_t number_handler_status=0;
 
@@ -434,11 +435,12 @@ uint8_t rtctimehex[7] ="";
 
 const uint8_t usb_img[7] = {0x7F, 0x7F, 0x7F, 0x14, 0x7F, 0x7F, 0x7F};
 const uint8_t test1_img[7] = {0x55, 0x2A, 0x55, 0x2A, 0x55, 0x2A, 0x55};
-const uint8_t countdown_timer_img[7] = {0x3e, 0x49, 0x49, 0x4d, 0x41, 0x41, 0x3e};
+const uint8_t bad_clock_img[7] = {0x3e, 0x49, 0x49, 0x4d, 0x41, 0x41, 0x3e};
 const uint8_t am_img[7] = {0x07, 0x05, 0x05, 0x07, 0x05, 0x05, 0x05};
 const uint8_t pm_img[7] = {0x07, 0x05, 0x05, 0x07, 0x04, 0x04, 0x04};
 const uint8_t three_dots_img[7] = {0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00};
 const uint8_t plus_img[7] = {0x00, 0x08, 0x08, 0x3e, 0x08, 0x08, 0x00};
+
 
 int32_t divRoundClosest(const int32_t n, const int32_t d)
 {
@@ -503,14 +505,21 @@ void i2c_rx(uint8_t addr, uint8_t * p_data, uint8_t length)
     while (m_xfer_done == false);
 }
 
-//FACTORY TEST MODE
-static void factory_test_enter(void)
+
+
+static void calibration_enter(void)
 {
 
     //RTC CALIB ENTRY CODE STARTS HERE
 
     const uint8_t RTC_ENTER_CALIB[2]= {RTC_CTL2,0x23}; // SECONDS OUTPUT NOW OUTPUTS 4096HZ
     i2c_tx(PCF85063TP,RTC_ENTER_CALIB,sizeof(RTC_ENTER_CALIB), false);
+
+}
+
+//FACTORY TEST MODE
+static void factory_test_enter(void)
+{
 
     draw_mode=true;
     factory_check_mode=true;
@@ -547,6 +556,8 @@ static void factory_test_exit(void)
 
 }
 
+
+
 static void PCF85063_init(void)
 {
     uint8_t init_rtc3[2]= {RTC_OFFSET,EMPTY};
@@ -566,15 +577,9 @@ static void PCF85063_init(void)
 
     if(ee_settings[ee_sys_calibrationtoken]!='1')
     {
+        calibration_enter();
         factory_test_enter();
         ble_nus_string_send(&m_nus, "CALIB_REQUEST\n",14);
-    }
-    else
-    {
-        if(ee_settings[ee_sys_timesettoken]!='1')
-        {
-            ble_nus_string_send(&m_nus, "TIME_REQUEST\n",13);
-        }
     }
 }
 
@@ -694,7 +699,6 @@ static void write_default_ee_settings(void)
     ee_settings[ee_msg_speed]=5;
     ee_settings[ee_msg_len]=4;
     ee_settings[ee_sys_calibrationtoken]=0xFF;//reset calibration validness
-    ee_settings[ee_sys_timesettoken]=0xFF;//reset time validness
     ee_settings[ee_darknightmode_lowlimit]=1;
     ee_settings[ee_darknightmode_highlimit]=2;
     ee_settings[ee_darknightmode]='1';
@@ -1056,6 +1060,19 @@ static void PCF85063_gettime(void)
     i2c_tx(PCF85063TP,read_time,sizeof(read_time),true);
     i2c_rx(PCF85063TP,rtctime,sizeof(rtctime));
 
+    
+    if(rtctime[rtctime_sec]&mask_clock_integrity)
+    {
+      time_correct=false;
+      ble_nus_string_send(&m_nus, "TIME_REQUEST\n",13);
+    }
+    else
+    {
+      time_correct=true;      
+    }
+    
+    
+    
     ////////////ADDITIONAL CONVERTION TO HEX BELOW
     rtctimehex[rtctime_sec]  = (((rtctime[rtctime_sec]&mask_60_t)>>4)*10)+(rtctime[rtctime_sec]&mask_60_u);
     rtctimehex[rtctime_min]  = (((rtctime[rtctime_min]&mask_60_t)>>4)*10)+(rtctime[rtctime_min]&mask_60_u);
@@ -1111,7 +1128,6 @@ static void PCF85063_settime(void)
         set_time[i+1]=rtctime[i];
     }
     i2c_tx(PCF85063TP,set_time,sizeof(set_time),false);
-    store_ee_settings_partial(ee_sys_timesettoken,'1');
 }
 
 static void convert_time_to_24hr(void)
@@ -1236,6 +1252,8 @@ static void DEADLINEDOTS_start(void)
 
 static void display_ddl_ended_anim(uint16_t howlong_ms)
 {
+  
+/*  change images in these, then uncomment ///f/
     display_img(countdown_timer_img, 0, BRO0);
     display_img(countdown_timer_img, 1, BRO1);
     display_img(countdown_timer_img, 0, BRO2);
@@ -1254,6 +1272,9 @@ static void display_ddl_ended_anim(uint16_t howlong_ms)
     display_img(countdown_timer_img, 1, BRO0);
     display_img(countdown_timer_img, 0, BRO1);
     display_img(countdown_timer_img, 1, BRO2);
+    
+    */
+    
     nrf_delay_ms(howlong_ms/4);
 }
 
@@ -1934,10 +1955,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 {
                     ble_nus_string_send(&m_nus, "CALIB_REQUEST\n",14);
                 }
-                if(ee_settings[ee_sys_timesettoken]!='1')
-                {
-                    ble_nus_string_send(&m_nus, "TIME_REQUEST\n",13);
-                }
+
             }
             else
             {
@@ -2498,71 +2516,81 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
     int32_t timetotal_secs, timeleft_secs;
 
     PCF85063_gettime();
-
-    switch(ddl_status)
+    if(time_correct)
     {
-    case STARTED:
-
-        start_date.tm_hour = ee_settings[ee_ddl_start_hr];
-        start_date.tm_min = ee_settings[ee_ddl_start_min];
-        end_date.tm_sec = ee_settings[ee_ddl_start_sec];
-        start_date.tm_mon = ee_settings[ee_ddl_start_mon];
-        start_date.tm_mday = ee_settings[ee_ddl_start_day];
-        start_date.tm_year = 100+ee_settings[ee_ddl_start_yr];
-        end_date.tm_hour = ee_settings[ee_ddl_end_hr];
-        end_date.tm_min = ee_settings[ee_ddl_end_min];
-        end_date.tm_sec = ee_settings[ee_ddl_end_sec];
-        end_date.tm_mon = ee_settings[ee_ddl_end_mon];
-        end_date.tm_mday = ee_settings[ee_ddl_end_day];
-        end_date.tm_year = 100+ee_settings[ee_ddl_end_yr];
-        start_time = mktime(&start_date);
-        end_time = mktime(&end_date);
-        timetotal_secs = (int32_t)difftime(end_time, start_time);
-        if(timetotal_secs<=0)
+        switch(ddl_status)
         {
-            ble_nus_string_send(&m_nus,"DDL NEG ETA\n",12);
+        case STARTED:
+
+            start_date.tm_hour = ee_settings[ee_ddl_start_hr];
+            start_date.tm_min = ee_settings[ee_ddl_start_min];
+            end_date.tm_sec = ee_settings[ee_ddl_start_sec];
+            start_date.tm_mon = ee_settings[ee_ddl_start_mon];
+            start_date.tm_mday = ee_settings[ee_ddl_start_day];
+            start_date.tm_year = 100+ee_settings[ee_ddl_start_yr];
+            end_date.tm_hour = ee_settings[ee_ddl_end_hr];
+            end_date.tm_min = ee_settings[ee_ddl_end_min];
+            end_date.tm_sec = ee_settings[ee_ddl_end_sec];
+            end_date.tm_mon = ee_settings[ee_ddl_end_mon];
+            end_date.tm_mday = ee_settings[ee_ddl_end_day];
+            end_date.tm_year = 100+ee_settings[ee_ddl_end_yr];
+            start_time = mktime(&start_date);
+            end_time = mktime(&end_date);
+            timetotal_secs = (int32_t)difftime(end_time, start_time);
+            if(timetotal_secs<=0)
+            {
+                ble_nus_string_send(&m_nus,"DDL NEG ETA\n",12);
+                break;
+            }
+
+            start_date.tm_hour = rtctimehex[rtctime_hour];
+            start_date.tm_min = rtctimehex[rtctime_min];
+            start_date.tm_sec = rtctimehex[rtctime_sec];
+            start_date.tm_mon = rtctimehex[rtctime_mon];
+            start_date.tm_mday = rtctimehex[rtctime_day];
+            start_date.tm_year = 100+rtctimehex[rtctime_year];
+            end_date.tm_hour = ee_settings[ee_ddl_end_hr];
+            end_date.tm_min = ee_settings[ee_ddl_end_min];
+            end_date.tm_sec = ee_settings[ee_ddl_end_sec];
+            end_date.tm_mon = ee_settings[ee_ddl_end_mon];
+            end_date.tm_mday = ee_settings[ee_ddl_end_day];
+            end_date.tm_year = 100+ee_settings[ee_ddl_end_yr];
+            start_time = mktime(&start_date);
+            end_time = mktime(&end_date);
+            timeleft_secs = (int32_t)difftime(end_time, start_time);
+
+            if(timeleft_secs<=0)
+            {
+                ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
+                ddl_status=ENDED;
+                display_ddl_ended_anim(howlong_ms);
+            }
+            else
+            {
+                display_dots_timeratio(timeleft_secs,timetotal_secs);
+                nrf_delay_ms(howlong_ms);
+            }
+
+
+        case ENDED:
+
+            display_ddl_ended_anim(howlong_ms);
+            break;
+        default:
+            display_symbol('?', 0,BRO0);
+            ble_nus_string_send(&m_nus,"DDL NOT STARTED\n",16);
+            nrf_delay_ms(howlong_ms);
             break;
         }
-
-        start_date.tm_hour = rtctimehex[rtctime_hour];
-        start_date.tm_min = rtctimehex[rtctime_min];
-        start_date.tm_sec = rtctimehex[rtctime_sec];
-        start_date.tm_mon = rtctimehex[rtctime_mon];
-        start_date.tm_mday = rtctimehex[rtctime_day];
-        start_date.tm_year = 100+rtctimehex[rtctime_year];
-        end_date.tm_hour = ee_settings[ee_ddl_end_hr];
-        end_date.tm_min = ee_settings[ee_ddl_end_min];
-        end_date.tm_sec = ee_settings[ee_ddl_end_sec];
-        end_date.tm_mon = ee_settings[ee_ddl_end_mon];
-        end_date.tm_mday = ee_settings[ee_ddl_end_day];
-        end_date.tm_year = 100+ee_settings[ee_ddl_end_yr];
-        start_time = mktime(&start_date);
-        end_time = mktime(&end_date);
-        timeleft_secs = (int32_t)difftime(end_time, start_time);
-
-        if(timeleft_secs<=0)
-        {
-            ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
-            ddl_status=ENDED;
-            display_ddl_ended_anim(howlong_ms);
-        }
-        else
-        {
-            display_dots_timeratio(timeleft_secs,timetotal_secs);
-            nrf_delay_ms(howlong_ms);
-        }
-
-
-    case ENDED:
-
-        display_ddl_ended_anim(howlong_ms);
-        break;
-    default:
-        display_symbol('?', 0,BRO0);
-        ble_nus_string_send(&m_nus,"DDL NOT STARTED\n",16);
-        nrf_delay_ms(howlong_ms);
-        break;
     }
+    else
+    {
+      ///time incorrect?
+      display_img(bad_clock_img, false, BRO0);
+      nrf_delay_ms(howlong_ms);
+    }
+    
+    
 
 }
 
@@ -2570,7 +2598,16 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
 static void show_timedots(uint16_t howlong_ms)
 {
     PCF85063_gettime();
-    display_dots_timeratio((rtctimehex[rtctime_min]+(rtctimehex[rtctime_hour]*60)),1439);
+    if(time_correct)
+    {
+          display_dots_timeratio((rtctimehex[rtctime_min]+(rtctimehex[rtctime_hour]*60)),1439);
+    }
+    else
+    {
+        ///time incorrect?
+        display_img(bad_clock_img, false, BRO0);
+    }
+
     nrf_delay_ms(howlong_ms);
 }
 
@@ -2635,99 +2672,125 @@ static void show_timeclock(uint16_t howlong_ms)
     uint8_t i;
 
     PCF85063_gettime();
-
-    if(brocount==3)
+    if(time_correct)
     {
-        if(ee_settings[ee_t_format]==HRS_24)
+      if(brocount==3)
         {
-            for (i=0; i<10; i++)
+            if(ee_settings[ee_t_format]==HRS_24)
             {
-                display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
-                display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
-                display_double_digits_bcd((rtctime[rtctime_sec]&mask_60_t)>>4, rtctime[rtctime_sec]&mask_60_u,0,BRO2);
-                nrf_delay_ms(howlong_ms/10);
-            }
-        }
-        else//12 hour format
-        {
-            for (i=0; i<5; i++)
-            {
-                display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
-                display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
-                if(rtctime[rtctime_hour]&mask_ampm)///check if the register is correct here
+                for (i=0; i<10; i++)
                 {
-                    display_img(pm_img,0,BRO2);
+                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
+                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
+                    display_double_digits_bcd((rtctime[rtctime_sec]&mask_60_t)>>4, rtctime[rtctime_sec]&mask_60_u,0,BRO2);
+                    nrf_delay_ms(howlong_ms/10);
                 }
-                else
+            }
+            else//12 hour format
+            {
+                for (i=0; i<5; i++)
                 {
-                    display_img(am_img,0,BRO2);
+                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
+                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
+                    if(rtctime[rtctime_hour]&mask_ampm)///check if the register is correct here
+                    {
+                        display_img(pm_img,0,BRO2);
+                    }
+                    else
+                    {
+                        display_img(am_img,0,BRO2);
+                    }
+                    nrf_delay_ms(howlong_ms/5);
                 }
-                nrf_delay_ms(howlong_ms/5);
             }
         }
-    }
-    else if(brocount==2)
-    {
-        if(ee_settings[ee_t_format]==HRS_24)
+        else if(brocount==2)
         {
-            for (i=0; i<5; i++)
+            if(ee_settings[ee_t_format]==HRS_24)
             {
-                PCF85063_gettime();
-                display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
-                display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
-                nrf_delay_ms(howlong_ms/5);
-            }
-        }
-        else
-        {
-            for (i=0; i<5; i++)
-            {
-                PCF85063_gettime();
-                display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
-                display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
-                nrf_delay_ms(howlong_ms/5);
-            }
-        }
-    }
-    else if(brocount==1)
-    {
-        if(ee_settings[ee_t_format]==HRS_24)
-        {
-            PCF85063_gettime();
-            display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
-            nrf_delay_ms((howlong_ms*2)/5);
-            display_symbol(stngs_t_sep[ee_settings[ee_t_sep]-'0'],0,BRO0);
-            nrf_delay_ms((howlong_ms)/5);
-            display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
-            nrf_delay_ms((howlong_ms*2)/5);
-        }
-        else
-        {
-            display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
-            nrf_delay_ms((howlong_ms/3));
-            display_symbol(stngs_t_sep[ee_settings[ee_t_sep]-'0'],0,BRO0);
-            nrf_delay_ms((howlong_ms/6));
-            display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
-            nrf_delay_ms((howlong_ms/3));
-            if(rtctime[rtctime_hour]&mask_ampm)///check if the register is correct here
-            {
-                display_img(pm_img,0,BRO0);
+                for (i=0; i<5; i++)
+                {
+                    PCF85063_gettime();
+                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
+                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
+                    nrf_delay_ms(howlong_ms/5);
+                }
             }
             else
             {
-                display_img(am_img,0,BRO0);
+                for (i=0; i<5; i++)
+                {
+                    PCF85063_gettime();
+                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
+                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
+                    nrf_delay_ms(howlong_ms/5);
+                }
             }
-            nrf_delay_ms((howlong_ms/6));
+        }
+        else if(brocount==1)
+        {
+            if(ee_settings[ee_t_format]==HRS_24)
+            {
+                PCF85063_gettime();
+                display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
+                nrf_delay_ms((howlong_ms*2)/5);
+                display_symbol(stngs_t_sep[ee_settings[ee_t_sep]-'0'],0,BRO0);
+                nrf_delay_ms((howlong_ms)/5);
+                display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
+                nrf_delay_ms((howlong_ms*2)/5);
+            }
+            else
+            {
+                display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
+                nrf_delay_ms((howlong_ms/3));
+                display_symbol(stngs_t_sep[ee_settings[ee_t_sep]-'0'],0,BRO0);
+                nrf_delay_ms((howlong_ms/6));
+                display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
+                nrf_delay_ms((howlong_ms/3));
+                if(rtctime[rtctime_hour]&mask_ampm)///check if the register is correct here
+                {
+                    display_img(pm_img,0,BRO0);
+                }
+                else
+                {
+                    display_img(am_img,0,BRO0);
+                }
+                nrf_delay_ms((howlong_ms/6));
+            }
+
         }
 
+
+        disp_clear_buffer(BRO0);
+        disp_clear_buffer(BRO1);
+        disp_clear_buffer(BRO2);
+
+    //   display_symbol(' ',time_sep_speed_table[ee_settings[ee_t_speed]],0);
     }
-
-
-    disp_clear_buffer(BRO0);
-    disp_clear_buffer(BRO1);
-    disp_clear_buffer(BRO2);
-
-//   display_symbol(' ',time_sep_speed_table[ee_settings[ee_t_speed]],0);
+    else
+    {
+            ///time incorrect?
+      display_img(bad_clock_img, false, BRO0);
+      nrf_delay_ms(howlong_ms);
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  
 
 
 
@@ -2840,9 +2903,26 @@ static bool check_timesleepmode(void)
 
 }
 
+static void check_darknightmode(void)
+{
+  if(bsp_board_led_state_get(0) || bsp_board_led_state_get(1) || bsp_board_led_state_get(2))
+  {
+    
+  }
+  else
+  {
+    dark_mode_check = nrf_gpio_pin_read(AMB_LT_INT);
+  }
+}
+
+
+
 static void display_thing(uint8_t what,uint16_t howlong_ms)
 {
-    if((!draw_mode) && (!(nrf_gpio_pin_read(AMB_LT_INT)&&(ee_settings[ee_darknightmode]-'0'))) && (!((ee_settings[ee_timenightmode]-'0') && check_timesleepmode())))
+  check_darknightmode();
+  
+  
+    if((!draw_mode) && (!(dark_mode_check&&(ee_settings[ee_darknightmode]-'0'))) && (!((ee_settings[ee_timenightmode]-'0') && check_timesleepmode())))
 
     {
         switch(what)
@@ -2875,13 +2955,23 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
             break;
 
         default:
-            display_symbol(' ',0,BRO0);
-            display_symbol(' ',0,BRO1);
-            display_symbol(' ',0,BRO2);
+                                    // blank
+                    disp_clear_buffer(BRO0);
+                    disp_clear_buffer(BRO1);
+                    disp_clear_buffer(BRO2);
+                    disp_refresh();
             nrf_delay_ms(howlong_ms);
             break;
         }
 
+    }
+    else
+    {
+                          // blank
+                    disp_clear_buffer(BRO0);
+                    disp_clear_buffer(BRO1);
+                    disp_clear_buffer(BRO2);
+                    disp_refresh();
     }
 }
 
@@ -3424,23 +3514,16 @@ static void factory_check(void)
 {
     while(factory_check_mode)
     {
-
-        nrf_gpio_pin_write(LED_GREEN,!nrf_gpio_pin_read(AMB_LT_INT));
-
-        if(nrf_gpio_pin_read(SEC_INT_CALIB_OUT))
-        {
-            display_img(test1_img,0,BRO0);
-            display_img(test1_img,1,BRO1);
-            display_img(test1_img,0,BRO2);
-        }
-        else
-        {
-            display_img(test1_img,1,BRO0);
-            display_img(test1_img,0,BRO1);
-            display_img(test1_img,1,BRO2);
-
-        }
-        nrf_delay_ms(600);
+       PCF85063_gettime();
+       check_darknightmode();
+       display_pixel(0,0,dark_mode_check,BRO0);
+       display_pixel(1,0,bsp_board_led_state_get(0),BRO0);
+       display_pixel(2,0,bsp_board_led_state_get(1),BRO0);   
+       display_pixel(3,0,bsp_board_led_state_get(2),BRO0);     
+       display_pixel(4,0,nrf_gpio_pin_read(SEC_INT_CALIB_OUT),BRO0);   
+       display_pixel(5,0,time_correct,BRO0);  
+       
+       nrf_delay_ms(60);
     }
 }
 
