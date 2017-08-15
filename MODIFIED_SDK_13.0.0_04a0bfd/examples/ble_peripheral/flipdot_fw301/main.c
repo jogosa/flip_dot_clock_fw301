@@ -440,7 +440,7 @@ const uint8_t am_img[7] = {0x07, 0x05, 0x05, 0x07, 0x05, 0x05, 0x05};
 const uint8_t pm_img[7] = {0x07, 0x05, 0x05, 0x07, 0x04, 0x04, 0x04};
 const uint8_t three_dots_img[7] = {0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00};
 const uint8_t plus_img[7] = {0x00, 0x08, 0x08, 0x3e, 0x08, 0x08, 0x00};
-
+const uint8_t sleep_img[7] = {0x00, 0x00, 0x77, 0x00, 0x08, 0x00, 0x00};
 
 int32_t divRoundClosest(const int32_t n, const int32_t d)
 {
@@ -2967,11 +2967,10 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
     }
     else
     {
-                          // blank
-                    disp_clear_buffer(BRO0);
-                    disp_clear_buffer(BRO1);
-                    disp_clear_buffer(BRO2);
-                    disp_refresh();
+      
+            display_img(sleep_img, false, BRO0);
+            display_img(sleep_img, false, BRO1);
+            display_img(sleep_img, false, BRO2);
     }
 }
 
