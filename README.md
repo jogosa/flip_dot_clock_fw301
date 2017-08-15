@@ -10,6 +10,7 @@
 * display weather info @QM2VU5
 * display images @QD08WZ
 * bro mode
+* button functions
 
 
 
