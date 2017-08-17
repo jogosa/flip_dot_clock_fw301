@@ -612,7 +612,6 @@ static bool OPT3001_check_ID(void)
     
     if ((read_opt2[0]!=0x30)||(read_opt2[1]!=0x01))
     {
-      nrf_gpio_pin_write(LED_RED,!true);
       ble_nus_string_send(&m_nus, "OPT_READ_ERROR\n",15);
       nrf_delay_ms(200);
       return true;
@@ -814,7 +813,6 @@ static bool check_ee_token(void)
     i2c_rx(EEPROM,read_ee,sizeof(read_ee));
     if (read_ee[0]!=CURRENT_VERSION_TOKEN)
     {
-      nrf_gpio_pin_write(LED_RED,!true);
       ble_nus_string_send(&m_nus, "EE_READ_ERROR\n",14);
       nrf_delay_ms(200);
       return true;
@@ -2023,11 +2021,11 @@ void command_responder(uint8_t * bt_received_string_data)
                 reply_string[7]=current_bro+'0';//BRONUMBER
                 reply_string[9]=brocount+'0';//BROTOTAL                                            
                 reply_string[11]=dark_mode_check+'0';// should read true when dark
-                reply_string[13]=bsp_board_led_state_get(0)+'0';//BLUE LED    
+                reply_string[13]=bsp_board_led_state_get(0)+'0';//BLUE LED   should read true    
                 reply_string[15]=bsp_board_led_state_get(1)+'0';//GREEN LED                   
                 reply_string[17]=bsp_board_led_state_get(2)+'0';//RED LED        
-                reply_string[19]=nrf_gpio_pin_read(SEC_INT_CALIB_OUT)+'0';//      
-                reply_string[21]=check_ee_token()+'0';// bad if true                  
+                reply_string[19]=nrf_gpio_pin_read(SEC_INT_CALIB_OUT)+'0';//clock pin    
+                reply_string[21]=check_ee_token()+'0';// should read false
                 reply_string[23]=PCF85063_check_ID()+'0';// should read false
                 reply_string[25]=OPT3001_check_ID()+'0';// should read false              
                 reply_string[27]=time_correct+'0';// should read true if time correct
@@ -3573,6 +3571,20 @@ static void ee_check(void)
     }
 }
 
+static void paranoid_checks(void)
+{
+  
+  if(OPT3001_check_ID()||PCF85063_check_ID()||check_ee_token())
+  {
+    nrf_gpio_pin_write(LED_RED,!true);
+  }
+  else
+  {
+    nrf_gpio_pin_write(LED_RED,!false);
+  }
+
+}
+
 /**@brief Application main function.
  */
 int main(void)
@@ -3623,11 +3635,13 @@ int main(void)
     // Enter main loop.
     for (;;)
     {
-
+      
+        paranoid_checks();
         show_all();
         nrf_delay_ms(100);
         power_manage();
 
+        
     }
 }
 
