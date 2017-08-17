@@ -109,7 +109,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 
 
 
-#define CURRENT_VERSION_TOKEN           '^'                             //change everytime there is a need to restore eeprom settings to defaults
+#define CURRENT_VERSION_TOKEN           'Y'                             //change everytime there is a need to restore eeprom settings to defaults
 #define DEVICE_NAME                     "FLIP.CLOCK BLUE"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 #define CURRENT_SKU                     'B'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 
@@ -241,6 +241,10 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define RTC_WEEKDAYS 			0x08
 #define RTC_MONTHS 				0x09
 #define RTC_YEARS 				0x0A
+#define RTC_SEC_ALARM           0x0B
+#define RTC_MIN_ALARM           0x0C
+
+
 
 #define mask_60_u 				0x0F
 #define mask_60_t 				0x70
@@ -362,7 +366,7 @@ uint8_t display_buffer[21] =
     0xee, 0xb4, 0x72, 0xa5, 0xbb, 0x21, 0x0d//bro3
 };
 
-bool display_busy=false,countdown_timer_running=false,countdown_timer_setup_mode=false,draw_mode=false,factory_check_mode=false, time_correct=false, dark_mode_check=false;
+bool display_busy=false,countdown_timer_running=false,countdown_timer_setup_mode=false,draw_mode=false, time_correct=false, dark_mode_check=false;
 uint8_t countm=0, current_bro=BRO0, brocount=1,ddl_status=0;
 uint16_t refresh_speed_scroll,refresh_speed_time,refresh_speed_time_sep,stepj=0, countdown_timer=0,times_ups=0;
 uint32_t number_handler_status=0;
@@ -578,18 +582,7 @@ static void disp_clear_buffer(uint8_t bro)
         display_buffer[i+bro_disp_buf_addr[bro]]=0x00;
     }
 };
-//FACTORY TEST MODE
-static void factory_test_enter(void)
-{
-    disp_clear_buffer(BRO0);
-    disp_clear_buffer(BRO1);
-    disp_clear_buffer(BRO2);
-    disp_refresh();
 
-    draw_mode=true;
-    factory_check_mode=true;
-
-}
 
 static void OPT3001_init(void)
 {
@@ -604,16 +597,34 @@ static void OPT3001_init(void)
     i2c_tx(OPT3001,init_opt1,sizeof(init_opt1), false);
     i2c_tx(OPT3001,init_opt2,sizeof(init_opt2), false);
     i2c_tx(OPT3001,init_opt3,sizeof(init_opt3), false);
+
+    
 }
 
-static void factory_test_exit(void)
+
+static bool OPT3001_check_ID(void)
 {
+  
+    uint8_t read_opt1[1] = {AMBLT_DEVICE_ID};
+    uint8_t read_opt2[2] = {EMPTY,EMPTY};
+    i2c_tx(OPT3001,read_opt1,sizeof(read_opt1),true);
+    i2c_rx(OPT3001,read_opt2,sizeof(read_opt2));
+    
+    if ((read_opt2[0]!=0x30)||(read_opt2[1]!=0x01))
+    {
+      nrf_gpio_pin_write(LED_RED,!true);
+      ble_nus_string_send(&m_nus, "OPT_READ_ERROR\n",15);
+      nrf_delay_ms(200);
+      return true;
+    }
+    else
+    {
+      return false;
+    }
+}
 
-    draw_mode=false;
-    factory_check_mode=false;
-
-    //PROPER NORMAL SETTING OF AMBIENT LT
-    OPT3001_init();
+static void calibration_exit(void)
+{
 
     //RTC CALIB Exit CODE STARTS HERE
     const uint8_t RTC_EXIT_CALIB[2]= {RTC_CTL2,0x26}; // minute and second outputs enabled
@@ -621,10 +632,32 @@ static void factory_test_exit(void)
 
 }
 
-
+static bool PCF85063_check_ID(void)
+{
+      uint8_t read_rtc0[1] = {RTC_SEC_ALARM};
+  
+      i2c_tx(PCF85063TP,read_rtc0,sizeof(read_rtc0),true);
+      i2c_rx(PCF85063TP,read_rtc0,sizeof(read_rtc0));
+      
+    if (!(read_rtc0[0]&0x80))
+    {
+      nrf_gpio_pin_write(LED_RED,!true);
+      ble_nus_string_send(&m_nus, "RTC_READ_ERROR\n",15);
+      nrf_delay_ms(200);
+      return true;
+    }
+    else
+    {
+      return false;
+    }
+}
 
 static void PCF85063_init(void)
 {
+  
+
+  
+  
     uint8_t init_rtc3[2]= {RTC_OFFSET,EMPTY};
     init_rtc3[1]=ee_settings[ee_cal];
 
@@ -640,10 +673,12 @@ static void PCF85063_init(void)
     i2c_tx(PCF85063TP,init_rtc2,sizeof(init_rtc2), false);
     i2c_tx(PCF85063TP,init_rtc1,sizeof(init_rtc1), false);
 
+    
+
+    
     if(ee_settings[ee_sys_calibrationtoken]!='1')
     {
         calibration_enter();
-        factory_test_enter();
         ble_nus_string_send(&m_nus, "CALIB_REQUEST\n",14);
     }
 }
@@ -704,11 +739,27 @@ static void store_ee_settings(void)
 {
     ee_i2c_mass_write(EEPROM,ee_settings,sizeof(ee_settings));
 }
+static void read_ee_settings(void)
+{
+    uint8_t read_ee[1] = {0};
 
+    i2c_tx(EEPROM,read_ee,sizeof(read_ee),true);
+    i2c_rx(EEPROM,ee_settings,sizeof(ee_settings));
+}
+static void store_ee_settings_partial(uint8_t memaddr, uint8_t val)
+{
+    uint8_t storedata[2]="";
+    storedata[0]=memaddr;
+    storedata[1]=val;
+
+    i2c_tx(EEPROM,storedata,sizeof(storedata),false);
+    nrf_delay_ms(6);
+    read_ee_settings();
+}
 static void write_default_ee_settings(void)
 {
 
-    ee_settings[ee_sys_defaultstoken]=CURRENT_VERSION_TOKEN;
+    ee_settings[ee_sys_defaultstoken]=EMPTY;
     ee_settings[ee_t_format]=HRS_24;
     ee_settings[ee_t_sep]='0';
     ee_settings[ee_msg_speed]=5;
@@ -724,7 +775,7 @@ static void write_default_ee_settings(void)
     //  ee_settings[ee_ddl_hr]='';
     //  ee_settings[ee_ddl_min]='';
     //  ee_settings[ee_ddl_sec]='';
-    ee_settings[ee_timenightmode]='1';
+    ee_settings[ee_timenightmode]='0';
     ee_settings[ee_timenightmode_on_hrs]=0;
     ee_settings[ee_timenightmode_on_min]=0;
     ee_settings[ee_timenightmode_off_hrs]=8;
@@ -746,36 +797,35 @@ static void write_default_ee_settings(void)
     ee_settings[ee_message_text+1]='E';
     ee_settings[ee_message_text+2]='Y';
     ee_settings[ee_message_text+3]='!';
-
+    
     store_ee_settings();
+    
+    //store token separately, after all data were written
+    store_ee_settings_partial(ee_sys_defaultstoken,CURRENT_VERSION_TOKEN);
 
+    
 }
 
-void read_ee_settings(void)
+
+static bool check_ee_token(void)
 {
-    uint8_t read_ee[1] = {0};
-
+    uint8_t read_ee[1] = {ee_sys_defaultstoken};
     i2c_tx(EEPROM,read_ee,sizeof(read_ee),true);
-    i2c_rx(EEPROM,ee_settings,sizeof(ee_settings));
-
-    if(ee_settings[ee_sys_defaultstoken]!=CURRENT_VERSION_TOKEN)
+    i2c_rx(EEPROM,read_ee,sizeof(read_ee));
+    if (read_ee[0]!=CURRENT_VERSION_TOKEN)
     {
-        write_default_ee_settings();
-        factory_test_enter();
-        ble_nus_string_send(&m_nus, "EE_DEFAULTED\n",13);
+      nrf_gpio_pin_write(LED_RED,!true);
+      ble_nus_string_send(&m_nus, "EE_READ_ERROR\n",14);
+      nrf_delay_ms(200);
+      return true;
+    }
+    else
+    {
+      return false;
     }
 }
 
-static void store_ee_settings_partial(uint8_t memaddr, uint8_t val)
-{
-    uint8_t storedata[2]="";
-    storedata[0]=memaddr;
-    storedata[1]=val;
 
-    i2c_tx(EEPROM,storedata,sizeof(storedata),false);
-    nrf_delay_ms(6);
-    read_ee_settings();
-}
 
 /**@brief Function for assert macro callback.
  *
@@ -1063,6 +1113,8 @@ int8_t symbol_adress_translate(uint8_t characterx)
 
 static void PCF85063_gettime(void)
 {
+
+    
     uint8_t read_time[1]= {RTC_SECONDS};
 
     i2c_tx(PCF85063TP,read_time,sizeof(read_time),true);
@@ -1129,6 +1181,12 @@ static void PCF85063_settime(void)
 {
     uint8_t i;
 
+    
+    rtctime[rtctime_sec]&= ~mask_clock_integrity;
+ 
+    
+    
+    
     uint8_t set_time[8]= {RTC_SECONDS,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY};
     //uint8_t set_time[8]={RTC_SECONDS,0x50,0x59,0x21,0x04,0,0x08,0};
 
@@ -1197,7 +1255,7 @@ static void PCF85063_setCALIB(void)
     i2c_tx(PCF85063TP,set_calib,sizeof(set_calib),false);
 
     store_ee_settings_partial(ee_sys_calibrationtoken,'1');
-    factory_test_exit();
+    calibration_exit();
 }
 
 static void display_symbol(uint8_t symbol, uint8_t invert,uint8_t bro)
@@ -1287,6 +1345,18 @@ static void display_ddl_ended_anim(uint16_t howlong_ms)
     nrf_delay_ms(howlong_ms/4);
 }
 
+static void check_darknightmode(void)
+{
+  if(bsp_board_led_state_get(0) || bsp_board_led_state_get(1) || bsp_board_led_state_get(2))
+  {
+    
+  }
+  else
+  {
+    dark_mode_check = nrf_gpio_pin_read(AMB_LT_INT);
+  }
+}
+
 void command_responder(uint8_t * bt_received_string_data)
 {
     if(bt_received_string_data[2]==',')
@@ -1337,12 +1407,12 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 else if(bt_received_string_data[3]=='5')
                 {
-                    factory_test_enter();
+                    calibration_enter();
                     command_reply_ok();
                 }
                 else if(bt_received_string_data[3]=='6')
                 {
-                    factory_test_exit();
+                    calibration_exit();
                     command_reply_ok();
                 }
                 else
@@ -1943,20 +2013,25 @@ void command_responder(uint8_t * bt_received_string_data)
         case 'p':
             if(bt_received_string_data[1]=='q')//@Q970G8
             {
-                uint8_t reply_string[13]="pq,*,*,*,*,*\n";
+              
+                PCF85063_gettime();
+                check_darknightmode();
+                     
+                uint8_t reply_string[29]="pq,*,*,*,*,*,*,*,*,*,*,*,*,*\n";
                 reply_string[3]=CURRENT_SKU;
                 reply_string[5]=CURRENT_VERSION_TOKEN;//VERSION
                 reply_string[7]=current_bro+'0';//BRONUMBER
                 reply_string[9]=brocount+'0';//BROTOTAL                                            
+                reply_string[11]=dark_mode_check+'0';// should read true when dark
+                reply_string[13]=bsp_board_led_state_get(0)+'0';//BLUE LED    
+                reply_string[15]=bsp_board_led_state_get(1)+'0';//GREEN LED                   
+                reply_string[17]=bsp_board_led_state_get(2)+'0';//RED LED        
+                reply_string[19]=nrf_gpio_pin_read(SEC_INT_CALIB_OUT)+'0';//      
+                reply_string[21]=check_ee_token()+'0';// bad if true                  
+                reply_string[23]=PCF85063_check_ID()+'0';// should read false
+                reply_string[25]=OPT3001_check_ID()+'0';// should read false              
+                reply_string[27]=time_correct+'0';// should read true if time correct
                 
-                if(nrf_gpio_pin_read(AMB_LT_INT))
-                {
-                    reply_string[11]='1';
-                }
-                else
-                {
-                    reply_string[11]='0';
-                }
 
                 ble_nus_string_send(&m_nus,reply_string,sizeof(reply_string));
 
@@ -2613,6 +2688,7 @@ static void show_timedots(uint16_t howlong_ms)
     {
         ///time incorrect?
         display_img(bad_clock_img, false, BRO0);
+        
     }
 
     nrf_delay_ms(howlong_ms);
@@ -2884,17 +2960,7 @@ static bool check_timesleepmode(void)
 
 }
 
-static void check_darknightmode(void)
-{
-  if(bsp_board_led_state_get(0) || bsp_board_led_state_get(1) || bsp_board_led_state_get(2))
-  {
-    
-  }
-  else
-  {
-    dark_mode_check = nrf_gpio_pin_read(AMB_LT_INT);
-  }
-}
+
 
 
 
@@ -2902,8 +2968,11 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
 {
   check_darknightmode();
   
-  
-    if((!draw_mode) && (!(dark_mode_check&&(ee_settings[ee_darknightmode]-'0'))) && (!((ee_settings[ee_timenightmode]-'0') && check_timesleepmode())))
+    if(draw_mode)
+    {
+      
+    }
+    else if((!(dark_mode_check&&(ee_settings[ee_darknightmode]-'0'))) && (!((ee_settings[ee_timenightmode]-'0') && check_timesleepmode())))
     {
         switch(what)
         {
@@ -2944,10 +3013,6 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
             break;
         }
 
-    }
-    else if(draw_mode)
-    {
-      
     }
     else
     {
@@ -3494,20 +3559,17 @@ static void power_manage(void)
     APP_ERROR_CHECK(err_code);
 }
 
-static void factory_check(void)
+
+
+static void ee_check(void)
 {
-    while(factory_check_mode)
+    if(check_ee_token())
     {
-       PCF85063_gettime();
-       check_darknightmode();
-       display_pixel(0,0,dark_mode_check,BRO0);
-       display_pixel(1,0,bsp_board_led_state_get(0),BRO0);
-       display_pixel(2,0,bsp_board_led_state_get(1),BRO0);   
-       display_pixel(3,0,bsp_board_led_state_get(2),BRO0);     
-       display_pixel(4,0,nrf_gpio_pin_read(SEC_INT_CALIB_OUT),BRO0);   
-       display_pixel(5,0,time_correct,BRO0);  
-       
-       nrf_delay_ms(60);
+        nrf_gpio_pin_write(LED_RED,!true);
+        write_default_ee_settings();
+        ble_nus_string_send(&m_nus, "EE_DEFAULTED\n",13);
+        nrf_delay_ms(400);
+        nrf_gpio_pin_write(LED_RED,!false);
     }
 }
 
@@ -3523,20 +3585,28 @@ int main(void)
     APP_ERROR_CHECK(err_code);
 
     init_gpio();
-
-    nrf_gpio_pin_write(LED_RED,!true);
-
     twi_init();
     uart_init();
     log_init();
-
-    read_ee_settings();
-    nrf_gpio_pin_write(LED_RED,!false);
-
-    PCF85063_init();
-    OPT3001_init();
-
     buttons_leds_init(&erase_bonds);
+    
+    draw_mode=true;
+     nrf_gpio_pin_write(LED_RED,!true);   
+    disp_clear_buffer(BRO0);
+    display_pixel(0,2,true,BRO0);      
+    display_pixel(1,2,true,BRO0);  
+    display_pixel(2,2,true,BRO0);  
+    read_ee_settings();
+    display_pixel(0,2,false,BRO0); 
+    PCF85063_init();
+    display_pixel(1,2,false,BRO0); 
+    OPT3001_init();
+    display_pixel(2,2,false,BRO0);
+    
+    nrf_gpio_pin_write(LED_RED,!false);
+    draw_mode=false;  
+    ee_check();
+    
     ble_stack_init();
     gap_params_init();
     gatt_init();
@@ -3555,9 +3625,7 @@ int main(void)
     {
 
         show_all();
-        factory_check();
-
-        nrf_delay_ms(50);
+        nrf_delay_ms(100);
         power_manage();
 
     }
