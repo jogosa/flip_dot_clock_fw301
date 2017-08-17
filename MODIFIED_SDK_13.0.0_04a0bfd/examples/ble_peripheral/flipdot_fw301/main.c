@@ -2020,7 +2020,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 reply_string[5]=CURRENT_VERSION_TOKEN;//VERSION
                 reply_string[7]=current_bro+'0';//BRONUMBER
                 reply_string[9]=brocount+'0';//BROTOTAL                                            
-                reply_string[11]=dark_mode_check+'0';// should read true when dark
+                reply_string[11]=dark_mode_check+'0';// should read true when dark //WONT READ CORRECTLY IF THE LED IS LIT
                 reply_string[13]=bsp_board_led_state_get(0)+'0';//BLUE LED   should read true    
                 reply_string[15]=bsp_board_led_state_get(1)+'0';//GREEN LED                   
                 reply_string[17]=bsp_board_led_state_get(2)+'0';//RED LED        
@@ -3563,11 +3563,11 @@ static void ee_check(void)
 {
     if(check_ee_token())
     {
-        nrf_gpio_pin_write(LED_RED,!true);
+        nrf_gpio_pin_write(LED_GREEN,!true);
         write_default_ee_settings();
         ble_nus_string_send(&m_nus, "EE_DEFAULTED\n",13);
         nrf_delay_ms(400);
-        nrf_gpio_pin_write(LED_RED,!false);
+        nrf_gpio_pin_write(LED_GREEN,!false);
     }
 }
 
