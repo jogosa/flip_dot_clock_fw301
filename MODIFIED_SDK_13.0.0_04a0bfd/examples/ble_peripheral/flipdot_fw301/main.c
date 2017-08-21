@@ -109,7 +109,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 
 
 
-#define CURRENT_VERSION_TOKEN           'Y'                             //change everytime there is a need to restore eeprom settings to defaults
+#define CURRENT_VERSION_TOKEN           '+'                             //change everytime there is a need to restore eeprom settings to defaults
 #define DEVICE_NAME                     "FLIP.CLOCK BLUE"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 #define CURRENT_SKU                     'B'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 
@@ -2015,7 +2015,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 PCF85063_gettime();
                 check_darknightmode();
                      
-                uint8_t reply_string[29]="pq,*,*,*,*,*,*,*,*,*,*,*,*,*\n";
+                uint8_t reply_string[33]="pq,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*\n";
                 reply_string[3]=CURRENT_SKU;
                 reply_string[5]=CURRENT_VERSION_TOKEN;//VERSION
                 reply_string[7]=current_bro+'0';//BRONUMBER
@@ -2029,7 +2029,8 @@ void command_responder(uint8_t * bt_received_string_data)
                 reply_string[23]=PCF85063_check_ID()+'0';// should read false
                 reply_string[25]=OPT3001_check_ID()+'0';// should read false              
                 reply_string[27]=time_correct+'0';// should read true if time correct
-                
+                reply_string[29]=!nrf_gpio_pin_read(BUTTON_0)+'0';// reads true if button0 pressed
+                reply_string[31]=!nrf_gpio_pin_read(BUTTON_1)+'0';// reads true if button1 pressed
 
                 ble_nus_string_send(&m_nus,reply_string,sizeof(reply_string));
 
