@@ -275,6 +275,7 @@
       <file>$PROJ_DIR$\..\..\..\..\..\..\components\libraries\uart\app_uart_fifo.c</file>
       <file>$PROJ_DIR$\..\..\..\..\..\..\components\drivers_nrf\common\nrf_drv_common.c</file>
       <file>$PROJ_DIR$\..\..\..\..\..\..\components\drivers_nrf\gpiote\nrf_drv_gpiote.c</file>
+      <file>$PROJ_DIR$\..\..\..\..\..\..\components\drivers_nrf\hal\nrf_temp.h</file>
     </outputs>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\..\..\components\ble\nrf_ble_gatt\nrf_ble_gatt.c</name>
@@ -416,7 +417,7 @@
         </tool>
         <tool>
           <name>BICOMP</name>
-          <file> 116 170 204 165 139 23 236 137 14 182 29 73 132 51 109 55 104 123 206 225 163 47 211 210 180 220 108 145 231 102 228 52 133 218 260 31 175 221 185 129 174 178 122 169 86 40 159 230 176 219 214 127 173 20 191 162 202 146 168 179 203 53 212 119 143 171 39 140 48 77 229 157 155 28 93 189 199 128 81 247 215 209 35 156 181 41</file>
+          <file> 116 170 204 165 139 23 236 137 14 182 29 20 73 132 51 109 55 104 123 206 225 163 162 211 210 180 220 108 145 231 102 228 52 191 260 31 175 221 185 129 174 178 122 169 86 40 159 230 176 219 214 127 173 133 47 218 202 146 168 179 203 53 212 119 143 171 39 140 48 77 229 157 155 28 93 189 199 128 81 247 215 209 35 156 181 41</file>
         </tool>
       </inputs>
     </file>

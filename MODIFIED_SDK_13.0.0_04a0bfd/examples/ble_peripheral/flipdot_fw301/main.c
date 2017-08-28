@@ -110,8 +110,8 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 
 
 #define CURRENT_VERSION_TOKEN           '%'                             //change everytime there is a need to restore eeprom settings to defaults
-#define DEVICE_NAME                     "FLIP.CLOCK WHITE"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
-#define CURRENT_SKU                     'B'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
+#define DEVICE_NAME                     "FLIP.CLOCK GREEN"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
+#define CURRENT_SKU                     'G'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 
 /*
 "FLIP.CLOCK BLUE"
@@ -806,7 +806,7 @@ static void write_default_ee_settings(void)
 {
 
     ee_settings[ee_sys_defaultstoken]=EMPTY;
-//    ee_settings[ee_sys_broenabled]='0';                 //disable for devices that come without tranceivers
+//    ee_settings[ee_sys_broenabled]='0';                 //disable for devices that come without tranceivers //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT BRO OPTIONS
     ee_settings[ee_t_format]=HRS_24;
     ee_settings[ee_t_sep]='0';
     ee_settings[ee_msg_speed]=5;
@@ -1403,6 +1403,84 @@ static void check_darknightmode(void)
   }
 }
 
+
+
+//is leap year in Gregorian
+bool IsLeapG(uint16_t yr){
+  if(((((yr%400)==0)||((yr%100)!=0))&&((yr%4)==0))){
+    return true;
+  }else{
+    return false;
+  }
+}//end IsLeapG
+
+int32_t Godn(int32_t yy1,int32_t yy2)
+{ 
+  int32_t jj,bb;
+  bb=0;
+  for(jj=yy1;jj<yy2;jj++){
+    bb+=365;
+    if(IsLeapG(jj)==1) bb+=1;
+  }
+  return(bb);
+}// end Godn
+
+//Day of the Year
+int32_t rbdug(uint8_t d,uint8_t m,uint16_t y)
+{ 
+  int32_t a,r[13];
+  r[1] = 0; r[2] = 31; r[3] = 59; r[4] = 90;
+  r[5] = 120; r[6] = 151; r[7] = 181; r[8] = 212;
+  r[9] = 243; r[10]= 273; r[11]= 304; r[12]= 334;
+  a=r[m]+d;
+  if((IsLeapG(y)==1)&&(m>2)) a+=1;
+  return(a);
+}//end rbdug
+
+//date validity
+bool IsValid(uint8_t dd,uint8_t mm,uint16_t yy)
+{ 
+  int32_t v[13];
+  if((0 < mm) && (mm < 13)){
+    v[1] = 32; v[2] = 29; v[3] = 32; v[4] = 31;
+    v[5] = 32; v[6] = 31; v[7] = 32; v[8] = 32;
+    v[9] = 31; v[10]= 32; v[11]= 31; v[12]= 32;
+    if ((mm==2)&&(IsLeapG(yy)==1)) v[2]=30;
+    if((0 < dd) && (dd < v[mm])){
+      return true;
+    }else{
+      return false;
+    }
+  }else{
+    return false;
+  }
+}//end IsValid
+
+
+int32_t smh_dif(uint8_t s1,uint8_t m1,uint8_t h1,uint8_t s2,uint8_t m2,uint8_t h2)
+{
+  return ((s2+(m2*60)+(h2*3600))   -   (s1+(m1*60)+(h1*3600)));      
+}
+
+int32_t DatDif(uint8_t s1, uint8_t n1, uint8_t h1, uint8_t d1,uint8_t m1,uint16_t y1,uint8_t s2, uint8_t n2, uint8_t h2, uint8_t d2,uint8_t m2,uint16_t y2)
+{ 
+  int32_t suma;
+  suma=rbdug(d2,m2,y2) - rbdug(d1,m1,y1);
+  if(y1 != y2){
+    if(y1 < y2){
+      suma+=Godn(y1,y2)*86400;
+    }else{
+      suma-=Godn(y2,y1)*86400;
+    }
+  }
+  suma+=smh_dif(s1,n1,h1,s2,n2,h2);
+
+  return(suma);
+}// end DatDif
+
+
+
+
 void command_responder(uint8_t * bt_received_string_data)
 {
     if(bt_received_string_data[2]==',')
@@ -1550,29 +1628,23 @@ void command_responder(uint8_t * bt_received_string_data)
                                     parameter_number_handler(bt_received_string_data,99,0,18);
                                     if(number_handler_status !=NaN)
                                     {
-                                        ee_settings[ee_ddl_end_yr] =  parameter_number_handler(bt_received_string_data,99,0,18);
-
                                         int32_t timeleft_secs;
-                                        struct tm start_date;
-                                        struct tm end_date;
-                                        time_t start_time, end_time;
-
-                                        start_date.tm_hour = rtctimehex[rtctime_hour];
-                                        start_date.tm_min = rtctimehex[rtctime_min];
-                                        start_date.tm_sec = rtctimehex[rtctime_sec];
-                                        start_date.tm_mon = rtctimehex[rtctime_mon];
-                                        start_date.tm_mday = rtctimehex[rtctime_day];
-                                        start_date.tm_year = 100+rtctimehex[rtctime_year];
-                                        end_date.tm_hour = ee_settings[ee_ddl_end_hr];
-                                        end_date.tm_min = ee_settings[ee_ddl_end_min];
-                                        end_date.tm_sec = ee_settings[ee_ddl_end_sec];
-                                        end_date.tm_mon = ee_settings[ee_ddl_end_mon];
-                                        end_date.tm_mday = ee_settings[ee_ddl_end_day];
-                                        end_date.tm_year = 100+ee_settings[ee_ddl_end_yr];
-                                        start_time = mktime(&start_date);
-                                        end_time = mktime(&end_date);
-                                        timeleft_secs = (int32_t)difftime(end_time, start_time);
-
+                                        
+                                        timeleft_secs = DatDif(
+                                            rtctimehex[rtctime_sec],
+                                            rtctimehex[rtctime_min],
+                                            rtctimehex[rtctime_hour],
+                                            rtctimehex[rtctime_day],
+                                            rtctimehex[rtctime_mon],
+                                            rtctimehex[rtctime_year]+1000, 
+                                            ee_settings[ee_ddl_end_sec],
+                                            ee_settings[ee_ddl_end_min],
+                                            ee_settings[ee_ddl_end_hr],
+                                            ee_settings[ee_ddl_end_day],
+                                            ee_settings[ee_ddl_end_mon],
+                                            ee_settings[ee_ddl_end_yr]+1000
+                                        );
+                                        
                                         if(timeleft_secs<=0)
                                         {
                                             ble_nus_string_send(&m_nus,"DDL NEG ETA\n",12);
@@ -2654,12 +2726,21 @@ uint32_t display_dots_timeratio(uint32_t timeleft_mins,uint32_t timetotal_mins)
 
 
 
+
+
+
+
+
+
+
+
+
+
 //@N5UHA7
 static void show_DEADLINEDOTS(uint16_t howlong_ms)
 {
-    struct tm start_date;
-    struct tm end_date;
-    time_t start_time, end_time;
+
+
     int32_t timetotal_secs, timeleft_secs;
 
     PCF85063_gettime();
@@ -2668,43 +2749,52 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
         switch(ddl_status)
         {
         case STARTED:
+/*
+            start_date.tm_hour = ;
+            start_date.tm_min = ;
+            end_date.tm_sec = ;
 
-            start_date.tm_hour = ee_settings[ee_ddl_start_hr];
-            start_date.tm_min = ee_settings[ee_ddl_start_min];
-            end_date.tm_sec = ee_settings[ee_ddl_start_sec];
-            start_date.tm_mon = ee_settings[ee_ddl_start_mon];
-            start_date.tm_mday = ee_settings[ee_ddl_start_day];
-            start_date.tm_year = 100+ee_settings[ee_ddl_start_yr];
-            end_date.tm_hour = ee_settings[ee_ddl_end_hr];
-            end_date.tm_min = ee_settings[ee_ddl_end_min];
-            end_date.tm_sec = ee_settings[ee_ddl_end_sec];
-            end_date.tm_mon = ee_settings[ee_ddl_end_mon];
-            end_date.tm_mday = ee_settings[ee_ddl_end_day];
-            end_date.tm_year = 100+ee_settings[ee_ddl_end_yr];
-            start_time = mktime(&start_date);
-            end_time = mktime(&end_date);
-            timetotal_secs = (int32_t)difftime(end_time, start_time);
+            end_date.tm_hour = ;
+            end_date.tm_min = ;
+            end_date.tm_sec = ;
+*/
+            
+            timetotal_secs = DatDif(
+                                    ee_settings[ee_ddl_start_sec],
+                                    ee_settings[ee_ddl_start_min],
+                                    ee_settings[ee_ddl_start_hr],
+                                    ee_settings[ee_ddl_start_day],
+                                    ee_settings[ee_ddl_start_mon],
+                                    ee_settings[ee_ddl_start_yr]+1000, 
+                                    ee_settings[ee_ddl_end_sec],
+                                    ee_settings[ee_ddl_end_min],
+                                    ee_settings[ee_ddl_end_hr],
+                                    ee_settings[ee_ddl_end_day],
+                                    ee_settings[ee_ddl_end_mon],
+                                    ee_settings[ee_ddl_end_yr]+1000
+                                      );
             if(timetotal_secs<=0)
             {
                 ble_nus_string_send(&m_nus,"DDL NEG ETA\n",12);
                 break;
             }
 
-            start_date.tm_hour = rtctimehex[rtctime_hour];
-            start_date.tm_min = rtctimehex[rtctime_min];
-            start_date.tm_sec = rtctimehex[rtctime_sec];
-            start_date.tm_mon = rtctimehex[rtctime_mon];
-            start_date.tm_mday = rtctimehex[rtctime_day];
-            start_date.tm_year = 100+rtctimehex[rtctime_year];
-            end_date.tm_hour = ee_settings[ee_ddl_end_hr];
-            end_date.tm_min = ee_settings[ee_ddl_end_min];
-            end_date.tm_sec = ee_settings[ee_ddl_end_sec];
-            end_date.tm_mon = ee_settings[ee_ddl_end_mon];
-            end_date.tm_mday = ee_settings[ee_ddl_end_day];
-            end_date.tm_year = 100+ee_settings[ee_ddl_end_yr];
-            start_time = mktime(&start_date);
-            end_time = mktime(&end_date);
-            timeleft_secs = (int32_t)difftime(end_time, start_time);
+
+            //now stores in days
+            timeleft_secs = DatDif(
+                                   rtctimehex[rtctime_sec],
+                                   rtctimehex[rtctime_min],
+                                   rtctimehex[rtctime_hour],
+                                   rtctimehex[rtctime_day],
+                                   rtctimehex[rtctime_mon],
+                                   rtctimehex[rtctime_year]+1000,
+                                   ee_settings[ee_ddl_end_sec],
+                                   ee_settings[ee_ddl_end_min],
+                                   ee_settings[ee_ddl_end_hr],
+                                   ee_settings[ee_ddl_end_day],
+                                   ee_settings[ee_ddl_end_mon],
+                                   ee_settings[ee_ddl_end_yr]+1000
+                                     );
 
             if(timeleft_secs<=0)
             {
