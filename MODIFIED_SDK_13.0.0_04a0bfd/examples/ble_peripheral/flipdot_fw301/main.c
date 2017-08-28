@@ -458,6 +458,8 @@ const uint8_t pm_img[7] = {0x07, 0x05, 0x05, 0x07, 0x04, 0x04, 0x04};
 const uint8_t three_dots_img[7] = {0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00};
 const uint8_t plus_img[7] = {0x00, 0x08, 0x08, 0x3e, 0x08, 0x08, 0x00};
 const uint8_t sleep_img[7] = {0x00, 0x00, 0x77, 0x00, 0x08, 0x00, 0x00};
+const uint8_t countdown_timer_img[7] = {0x3E, 0x22, 0x14, 0x08, 0x1C, 0x3E, 0x3E};
+
 
 int32_t divRoundClosest(const int32_t n, const int32_t d)
 {
@@ -1362,37 +1364,27 @@ static void DEADLINEDOTS_start(void)
     ee_settings[ee_ddl_start_mon] = rtctimehex[rtctime_mon];
     ee_settings[ee_ddl_start_day] = rtctimehex[rtctime_day];
     ee_settings[ee_ddl_start_yr] = rtctimehex[rtctime_year];
-
+    store_ee_settings();
 
     store_ee_settings_partial(ee_ddl_status, STARTED);
 }
 
-static void display_ddl_ended_anim(uint16_t howlong_ms)
-{
-  
-/*  change images in these, then uncomment ///f/
+static void display_ddl_ended_anim(void)
+{ 
+  uint8_t i;
+  for(i=0; i<4; i++)
+  {
     display_img(countdown_timer_img, 0, BRO0);
-    display_img(countdown_timer_img, 1, BRO1);
-    display_img(countdown_timer_img, 0, BRO2);
-    nrf_delay_ms(howlong_ms/4);
-
-    display_img(countdown_timer_img, 1, BRO0);
     display_img(countdown_timer_img, 0, BRO1);
-    display_img(countdown_timer_img, 1, BRO2);
-    nrf_delay_ms(howlong_ms/4);
-
-    display_img(countdown_timer_img, 0, BRO0);
-    display_img(countdown_timer_img, 1, BRO1);
     display_img(countdown_timer_img, 0, BRO2);
-    nrf_delay_ms(howlong_ms/4);
+    nrf_delay_ms(600);
 
-    display_img(countdown_timer_img, 1, BRO0);
-    display_img(countdown_timer_img, 0, BRO1);
-    display_img(countdown_timer_img, 1, BRO2);
-    
-    */
-    
-    nrf_delay_ms(howlong_ms/4);
+                    disp_clear_buffer(BRO0);
+                    disp_clear_buffer(BRO1);
+                    disp_clear_buffer(BRO2);
+                    disp_refresh();
+    nrf_delay_ms(600);
+  }
 }
 
 static void check_darknightmode(void)
@@ -2797,7 +2789,7 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
               {
                   ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
                   store_ee_settings_partial(ee_ddl_status, ENDED);
-                  display_ddl_ended_anim(howlong_ms/4);
+                  display_ddl_ended_anim();
               }
               else
               {
@@ -2808,7 +2800,7 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
            }
         case ENDED:
 
-            display_ddl_ended_anim(howlong_ms);
+            display_ddl_ended_anim();
             break;
         default:
             display_symbol('?', 0,BRO0);
