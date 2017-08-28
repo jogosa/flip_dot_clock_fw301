@@ -2,7 +2,7 @@
 
 
 ### to-do fixes:
-* incorrect month and year is set @V060L4
+
 
 
 ### to-do features:

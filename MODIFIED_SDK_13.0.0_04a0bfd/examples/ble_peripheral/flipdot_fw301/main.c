@@ -109,8 +109,8 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 
 
 
-#define CURRENT_VERSION_TOKEN           '+'                             //change everytime there is a need to restore eeprom settings to defaults
-#define DEVICE_NAME                     "FLIP.CLOCK BLUE"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
+#define CURRENT_VERSION_TOKEN           '%'                             //change everytime there is a need to restore eeprom settings to defaults
+#define DEVICE_NAME                     "FLIP.CLOCK WHITE"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 #define CURRENT_SKU                     'B'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 
 /*
@@ -146,7 +146,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define ee_msg_len              5
 #define reserved2              6
 #define ee_sys_calibrationtoken 7
-#define reserved4               8
+#define ee_sys_broenabled               8
 #define ee_darknightmode_lowlimit         9
 #define ee_darknightmode_highlimit        10
 #define ee_darknightmode    	11
@@ -279,6 +279,19 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define AMBLT_ID 				0x7E
 #define AMBLT_DEVICE_ID 		0x7F
 //
+
+//AA812
+#define AA812_LEFT 			0x90
+#define AA812_RIGHT 			0x92
+#define AA812_CONF1			0x01
+#define AA812_CONF2 			0x02
+#define AA812_STATUS 		        0x03
+#define AA812_DEVICE_ID 		0x04
+#define AA812_RDATA 		        0x10
+#define AA812_TDATA 			0x50
+
+//
+
 #define symbol_xpause 			50
 
 
@@ -602,6 +615,39 @@ static void OPT3001_init(void)
 }
 
 
+static bool AA812_check_ID(uint8_t side)
+{
+    uint8_t read_aa812[1] = {AA812_DEVICE_ID};
+    
+    if(ee_settings[ee_sys_broenabled]=='1')
+    {
+      i2c_tx(side,read_aa812,sizeof(read_aa812),true);
+      i2c_rx(side,read_aa812,sizeof(read_aa812));
+
+      if (read_aa812[0]==0xCC)
+      {
+        return false;
+      }
+      else
+      {
+        if(side==AA812_LEFT)
+        {
+          ble_nus_string_send(&m_nus, "AA812LEFT_READ_ERROR\n",21);
+        }
+        else
+        {
+          ble_nus_string_send(&m_nus, "AA812RIGHT_READ_ERROR\n",22);
+        }
+        nrf_delay_ms(200);
+        return true;  
+      }
+    }
+    else
+    {
+        return false;
+    }
+}
+
 static bool OPT3001_check_ID(void)
 {
   
@@ -621,6 +667,7 @@ static bool OPT3001_check_ID(void)
       return false;
     }
 }
+
 
 static void calibration_exit(void)
 {
@@ -759,6 +806,7 @@ static void write_default_ee_settings(void)
 {
 
     ee_settings[ee_sys_defaultstoken]=EMPTY;
+//    ee_settings[ee_sys_broenabled]='0';                 //disable for devices that come without tranceivers
     ee_settings[ee_t_format]=HRS_24;
     ee_settings[ee_t_sep]='0';
     ee_settings[ee_msg_speed]=5;
@@ -1139,7 +1187,7 @@ static void PCF85063_gettime(void)
 
     if(ee_settings[ee_t_format]==HRS_12)
     {
-        hours  = (((rtctime[rtctime_hour]&mask_12hr_t)>>4)*10)+rtctime[rtctime_hour]&mask_12hr_u;
+        hours  = (((rtctime[rtctime_hour]&mask_12hr_t)>>4)*10)+(rtctime[rtctime_hour]&mask_12hr_u);
 
         //if time is in 12hr format convert time to 24 hour format
         if((rtctime[rtctime_hour]&mask_ampm)&&(hours==12))
@@ -1167,17 +1215,17 @@ static void PCF85063_gettime(void)
         rtctimehex[rtctime_hour]  = (((rtctime[rtctime_hour]&mask_24hr_t)>>4)*10)+(rtctime[rtctime_hour]&mask_24hr_u);
     }
 
-    rtctimehex[rtctime_day] = (((rtctime[rtctime_day]&mask_day_t)>>4)*10)+rtctime[rtctime_day]&mask_day_u;
+    rtctimehex[rtctime_day] = (((rtctime[rtctime_day]&mask_day_t)>>4)*10)+(rtctime[rtctime_day]&mask_day_u);
     rtctimehex[rtctime_weekday] = rtctime[rtctime_weekday] ;
-    rtctimehex[rtctime_mon] = (((rtctime[rtctime_mon]&mask_mon_t)>>4)*10)+rtctime[rtctime_mon]&mask_mon_u;
-    rtctimehex[rtctime_year] =  (((rtctime[rtctime_year]&mask_yr_t)>>4)*10)+rtctime[rtctime_year]&mask_yr_u;
+    rtctimehex[rtctime_mon] = (((rtctime[rtctime_mon]&mask_mon_t)>>4)*10)+(rtctime[rtctime_mon]&mask_mon_u);
+    rtctimehex[rtctime_year] =  (((rtctime[rtctime_year]&mask_yr_t)>>4)*10)+(rtctime[rtctime_year]&mask_yr_u);
 
 }
 
 //@FZ1HJM
 static void PCF85063_settime(void)
 {
-    uint8_t i;
+   uint8_t i;
 
     
     rtctime[rtctime_sec]&= ~mask_clock_integrity;
@@ -1186,7 +1234,7 @@ static void PCF85063_settime(void)
     
     
     uint8_t set_time[8]= {RTC_SECONDS,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY};
-    //uint8_t set_time[8]={RTC_SECONDS,0x50,0x59,0x21,0x04,0,0x08,0};
+    //uint8_t set_time[8]={RTC_SECONDS,0x50,0x59,0x21,0x04,0x16,0x08,0x20};
 
     for(i=0; i<7; i++)
     {
@@ -2015,7 +2063,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 PCF85063_gettime();
                 check_darknightmode();
                      
-                uint8_t reply_string[33]="pq,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*\n";
+                uint8_t reply_string[37]="pq,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*\n";
                 reply_string[3]=CURRENT_SKU;
                 reply_string[5]=CURRENT_VERSION_TOKEN;//VERSION
                 reply_string[7]=current_bro+'0';//BRONUMBER
@@ -2027,10 +2075,26 @@ void command_responder(uint8_t * bt_received_string_data)
                 reply_string[19]=nrf_gpio_pin_read(SEC_INT_CALIB_OUT)+'0';//clock pin    
                 reply_string[21]=check_ee_token()+'0';// should read false
                 reply_string[23]=PCF85063_check_ID()+'0';// should read false
-                reply_string[25]=OPT3001_check_ID()+'0';// should read false              
-                reply_string[27]=time_correct+'0';// should read true if time correct
-                reply_string[29]=!nrf_gpio_pin_read(BUTTON_0)+'0';// reads true if button0 pressed
-                reply_string[31]=!nrf_gpio_pin_read(BUTTON_1)+'0';// reads true if button1 pressed
+                reply_string[25]=OPT3001_check_ID()+'0';// should read false 
+                if(ee_settings[ee_sys_broenabled]=='0')
+                {
+                    reply_string[27]='X';// should read false
+                }
+                else
+                {
+                    reply_string[27]=AA812_check_ID(AA812_LEFT)+'0';// should read false
+                }
+                if(ee_settings[ee_sys_broenabled]=='0')
+                {
+                    reply_string[29]='X';// should read false
+                }
+                else
+                {
+                    reply_string[29]=AA812_check_ID(AA812_RIGHT)+'0';// should read false
+                }
+                reply_string[31]=time_correct+'0';// should read true if time correct
+                reply_string[33]=!nrf_gpio_pin_read(BUTTON_0)+'0';// reads true if button0 pressed
+                reply_string[35]=!nrf_gpio_pin_read(BUTTON_1)+'0';// reads true if button1 pressed
 
                 ble_nus_string_send(&m_nus,reply_string,sizeof(reply_string));
 
@@ -3574,8 +3638,7 @@ static void ee_check(void)
 
 static void paranoid_checks(void)
 {
-  
-  if(OPT3001_check_ID()||PCF85063_check_ID()||check_ee_token())
+  if(OPT3001_check_ID()||PCF85063_check_ID()||check_ee_token()||AA812_check_ID(AA812_LEFT)||AA812_check_ID(AA812_RIGHT))
   {
     nrf_gpio_pin_write(LED_RED,!true);
   }
@@ -3583,7 +3646,6 @@ static void paranoid_checks(void)
   {
     nrf_gpio_pin_write(LED_RED,!false);
   }
-
 }
 
 /**@brief Application main function.
@@ -3636,13 +3698,10 @@ int main(void)
     // Enter main loop.
     for (;;)
     {
-      
         paranoid_checks();
         show_all();
         nrf_delay_ms(100);
         power_manage();
-
-        
     }
 }
 
