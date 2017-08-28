@@ -2746,73 +2746,66 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
 
 
     int32_t timetotal_secs, timeleft_secs;
-
+    uint8_t i;
     PCF85063_gettime();
     if(time_correct)
     {
         switch(ee_settings[ee_ddl_status])
         {
         case STARTED:
-/*
-            start_date.tm_hour = ;
-            start_date.tm_min = ;
-            end_date.tm_sec = ;
 
-            end_date.tm_hour = ;
-            end_date.tm_min = ;
-            end_date.tm_sec = ;
-*/
-            
-            timetotal_secs = DatDif(
-                                    ee_settings[ee_ddl_start_sec],
-                                    ee_settings[ee_ddl_start_min],
-                                    ee_settings[ee_ddl_start_hr],
-                                    ee_settings[ee_ddl_start_day],
-                                    ee_settings[ee_ddl_start_mon],
-                                    ee_settings[ee_ddl_start_yr]+1000, 
-                                    ee_settings[ee_ddl_end_sec],
-                                    ee_settings[ee_ddl_end_min],
-                                    ee_settings[ee_ddl_end_hr],
-                                    ee_settings[ee_ddl_end_day],
-                                    ee_settings[ee_ddl_end_mon],
-                                    ee_settings[ee_ddl_end_yr]+1000
-                                      );
-            if(timetotal_secs<=0)
-            {
-                ble_nus_string_send(&m_nus,"DDL NEG ETA\n",12);
-                break;
-            }
+           for(i=0; i<4; i++)
+           {
+              timetotal_secs = DatDif(
+                                      ee_settings[ee_ddl_start_sec],
+                                      ee_settings[ee_ddl_start_min],
+                                      ee_settings[ee_ddl_start_hr],
+                                      ee_settings[ee_ddl_start_day],
+                                      ee_settings[ee_ddl_start_mon],
+                                      ee_settings[ee_ddl_start_yr]+1000, 
+                                      ee_settings[ee_ddl_end_sec],
+                                      ee_settings[ee_ddl_end_min],
+                                      ee_settings[ee_ddl_end_hr],
+                                      ee_settings[ee_ddl_end_day],
+                                      ee_settings[ee_ddl_end_mon],
+                                      ee_settings[ee_ddl_end_yr]+1000
+                                        );
+              if(timetotal_secs<=0)
+              {
+                  ble_nus_string_send(&m_nus,"DDL NEG ETA\n",12);
+                  break;
+              }
 
 
-            //now stores in days
-            timeleft_secs = DatDif(
-                                   rtctimehex[rtctime_sec],
-                                   rtctimehex[rtctime_min],
-                                   rtctimehex[rtctime_hour],
-                                   rtctimehex[rtctime_day],
-                                   rtctimehex[rtctime_mon],
-                                   rtctimehex[rtctime_year]+1000,
-                                   ee_settings[ee_ddl_end_sec],
-                                   ee_settings[ee_ddl_end_min],
-                                   ee_settings[ee_ddl_end_hr],
-                                   ee_settings[ee_ddl_end_day],
-                                   ee_settings[ee_ddl_end_mon],
-                                   ee_settings[ee_ddl_end_yr]+1000
-                                     );
+              //now stores in days
+              timeleft_secs = DatDif(
+                                     rtctimehex[rtctime_sec],
+                                     rtctimehex[rtctime_min],
+                                     rtctimehex[rtctime_hour],
+                                     rtctimehex[rtctime_day],
+                                     rtctimehex[rtctime_mon],
+                                     rtctimehex[rtctime_year]+1000,
+                                     ee_settings[ee_ddl_end_sec],
+                                     ee_settings[ee_ddl_end_min],
+                                     ee_settings[ee_ddl_end_hr],
+                                     ee_settings[ee_ddl_end_day],
+                                     ee_settings[ee_ddl_end_mon],
+                                     ee_settings[ee_ddl_end_yr]+1000
+                                       );
 
-            if(timeleft_secs<=0)
-            {
-                ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
-                store_ee_settings_partial(ee_ddl_status, ENDED);
-                display_ddl_ended_anim(howlong_ms);
-            }
-            else
-            {
-                display_dots_timeratio(timeleft_secs,timetotal_secs);
-                nrf_delay_ms(howlong_ms);
-            }
+              if(timeleft_secs<=0)
+              {
+                  ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
+                  store_ee_settings_partial(ee_ddl_status, ENDED);
+                  display_ddl_ended_anim(howlong_ms/4);
+              }
+              else
+              {
+                  display_dots_timeratio(timeleft_secs,timetotal_secs);
+                  nrf_delay_ms(howlong_ms/4);
+              }
 
-
+           }
         case ENDED:
 
             display_ddl_ended_anim(howlong_ms);
