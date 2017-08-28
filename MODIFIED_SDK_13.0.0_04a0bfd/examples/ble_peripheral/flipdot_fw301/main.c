@@ -109,7 +109,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 
 
 
-#define CURRENT_VERSION_TOKEN           '%'                             //change everytime there is a need to restore eeprom settings to defaults
+#define CURRENT_VERSION_TOKEN           '!'                             //change everytime there is a need to restore eeprom settings to defaults
 #define DEVICE_NAME                     "FLIP.CLOCK GREEN"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 #define CURRENT_SKU                     'G'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 
@@ -151,7 +151,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define ee_darknightmode_highlimit        10
 #define ee_darknightmode    	11
 #define ee_sys_sku				12
-#define reserved3    	        13
+#define ee_ddl_status    	        13
 #define ee_cal                  14
 #define ee_ddl_end_yr           15
 #define ee_ddl_end_mon          16
@@ -199,8 +199,8 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define HRS_24    				'1'
 #define HRS_12    				'0'
 
-#define STARTED 1
-#define ENDED 2
+#define STARTED '1'
+#define ENDED '2'
 
 //MUSICAL NOTES
 #define C6         31
@@ -380,7 +380,7 @@ uint8_t display_buffer[21] =
 };
 
 bool display_busy=false,countdown_timer_running=false,countdown_timer_setup_mode=false,draw_mode=false, time_correct=false, dark_mode_check=false;
-uint8_t countm=0, current_bro=BRO0, brocount=1,ddl_status=0;
+uint8_t countm=0, current_bro=BRO0, brocount=1;
 uint16_t refresh_speed_scroll,refresh_speed_time,refresh_speed_time_sep,stepj=0, countdown_timer=0,times_ups=0;
 uint32_t number_handler_status=0;
 
@@ -794,6 +794,8 @@ static void read_ee_settings(void)
 }
 static void store_ee_settings_partial(uint8_t memaddr, uint8_t val)
 {
+    ee_settings[memaddr]=val;
+  
     uint8_t storedata[2]="";
     storedata[0]=memaddr;
     storedata[1]=val;
@@ -816,6 +818,7 @@ static void write_default_ee_settings(void)
     ee_settings[ee_darknightmode_highlimit]=2;
     ee_settings[ee_darknightmode]='1';
     ee_settings[ee_cal]=0;
+    ee_settings[ee_ddl_status]='0';
     //  ee_settings[ee_ddl_yr]='';
     //  ee_settings[ee_ddl_mon]='';
     //  ee_settings[ee_ddl_day]='';
@@ -1360,7 +1363,8 @@ static void DEADLINEDOTS_start(void)
     ee_settings[ee_ddl_start_day] = rtctimehex[rtctime_day];
     ee_settings[ee_ddl_start_yr] = rtctimehex[rtctime_year];
 
-    ddl_status = STARTED;
+
+    store_ee_settings_partial(ee_ddl_status, STARTED);
 }
 
 static void display_ddl_ended_anim(uint16_t howlong_ms)
@@ -2746,7 +2750,7 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
     PCF85063_gettime();
     if(time_correct)
     {
-        switch(ddl_status)
+        switch(ee_settings[ee_ddl_status])
         {
         case STARTED:
 /*
@@ -2799,7 +2803,7 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
             if(timeleft_secs<=0)
             {
                 ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
-                ddl_status=ENDED;
+                store_ee_settings_partial(ee_ddl_status, ENDED);
                 display_ddl_ended_anim(howlong_ms);
             }
             else
