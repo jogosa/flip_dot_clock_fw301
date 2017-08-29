@@ -115,7 +115,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define BRO_ENABLED                     '1' // '0' for devices that come without tranceivers //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT BRO OPTIONS
 
 
-#define DISP_NOTIFY_MS 200
+#define DISP_NOTIFY_MS 600
 #define DISP_REFRESH_MS 100
 
 
@@ -466,7 +466,7 @@ const uint8_t three_dots_img[7] = {0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00};
 const uint8_t plus_img[7] = {0x00, 0x08, 0x08, 0x3e, 0x08, 0x08, 0x00};
 const uint8_t sleep_img[7] = {0x00, 0x00, 0x77, 0x00, 0x08, 0x00, 0x00};
 const uint8_t deadline_timer_img[7] = {0x3E, 0x22, 0x14, 0x08, 0x1C, 0x3E, 0x3E};
-const uint8_t countdown_img[7] = {0x00, 0x3E, 0x14, 0x08, 0x14, 0x3E, 0x00};
+const uint8_t countdown_timer_img[7] = {0x00, 0x3E, 0x14, 0x08, 0x14, 0x3E, 0x00};
 const uint8_t calendar_img[7] = {0x00, 0x2A, 0x00, 0x2A, 0x00, 0x00, 0x00};
 
 int32_t divRoundClosest(const int32_t n, const int32_t d)
@@ -1259,7 +1259,7 @@ static void PCF85063_settime(void)
 static void convert_time_to_24hr(void)
 {
     display_img(test1_img,false,BRO0);
-    uint8_t hours  = (((rtctime[rtctime_hour]&mask_12hr_t)>>4)*10)+rtctime[rtctime_hour]&mask_12hr_u;
+    uint8_t hours  = (((rtctime[rtctime_hour]&mask_12hr_t)>>4)*10)+(rtctime[rtctime_hour]&mask_12hr_u);
 
     if((rtctime[rtctime_hour]&mask_ampm)&&(hours==12))
     {
@@ -1270,7 +1270,7 @@ static void convert_time_to_24hr(void)
     {
         //is pm
         hours=hours+12;
-        rtctime[rtctime_hour] = (hours/10)<<4 | hours%10;
+        rtctime[rtctime_hour] = (hours/10)<<4 | (hours%10);
     }
     else if(hours==12)
     {
@@ -1280,7 +1280,7 @@ static void convert_time_to_24hr(void)
     else
     {
         //is am
-        rtctime[rtctime_hour] = (hours/10)<<4 | hours%10;
+        rtctime[rtctime_hour] = (hours/10)<<4 | (hours%10);
     }
 }
 
@@ -1292,7 +1292,7 @@ static void convert_time_to_12hr(void)
     if(hours==12)
     {
         //is 12
-        rtctime[rtctime_hour] = mask_ampm | (hours/10)<<4 | hours%10;
+        rtctime[rtctime_hour] = mask_ampm | (hours/10)<<4 | (hours%10);
     }
     else if(hours==0)
     {
@@ -1303,7 +1303,7 @@ static void convert_time_to_12hr(void)
     {
         //is >12
         hours=hours-12;
-        rtctime[rtctime_hour] = mask_ampm | (hours/10)<<4 | hours%10;
+        rtctime[rtctime_hour] = mask_ampm | (hours/10)<<4 | (hours%10);
     }
 }
 
@@ -1385,16 +1385,34 @@ static void display_ddl_ended_anim(void)
     display_img(deadline_timer_img, false, BRO0);
     display_img(deadline_timer_img, false, BRO1);
     display_img(deadline_timer_img, false, BRO2);
-    nrf_delay_ms(600);
+    nrf_delay_ms(DISP_NOTIFY_MS);
 
-                    disp_clear_buffer(BRO0);
-                    disp_clear_buffer(BRO1);
-                    disp_clear_buffer(BRO2);
-                    disp_refresh();
-    nrf_delay_ms(600);
+    disp_clear_buffer(BRO0);
+    disp_clear_buffer(BRO1);
+    disp_clear_buffer(BRO2);
+    disp_refresh();
+    nrf_delay_ms(DISP_NOTIFY_MS);
   }
 }
+/*
+static void display_countdown_timer_ended_anim(void)
+{ 
+  uint8_t i;
+  for(i=0; i<4; i++)
+  {
+    display_img(countdown_timer_img, true, BRO0);
+    display_img(countdown_timer_img, true, BRO1);
+    display_img(countdown_timer_img, true, BRO2);
+    nrf_delay_ms(DISP_NOTIFY_MS);
 
+    disp_clear_buffer(BRO0);
+    disp_clear_buffer(BRO1);
+    disp_clear_buffer(BRO2);
+    disp_refresh();
+    nrf_delay_ms(DISP_NOTIFY_MS);
+  }
+}
+*/
 static void check_darknightmode(void)
 {
   if(bsp_board_led_state_get(0) || bsp_board_led_state_get(1) || bsp_board_led_state_get(2))
@@ -1809,7 +1827,7 @@ void command_responder(uint8_t * bt_received_string_data)
             switch(bt_received_string_data[1])
             {
             case 'a'://@A43OJD
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE  || bt_received_string_data[3]==MINUTES_ONLY  || bt_received_string_data[3]==HOURS_ONLY)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE  || bt_received_string_data[3]==MINUTES_ONLY  || bt_received_string_data[3]==HOURS_ONLY || bt_received_string_data[3]==DATE)
                 {
                     store_ee_settings_partial(ee_show1,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1825,7 +1843,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 break;
             case 'b':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE  || bt_received_string_data[3]==MINUTES_ONLY  || bt_received_string_data[3]==HOURS_ONLY || bt_received_string_data[3]==DATE)
                 {
                     store_ee_settings_partial(ee_show2,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1841,7 +1859,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 break;
             case 'c':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE  || bt_received_string_data[3]==MINUTES_ONLY  || bt_received_string_data[3]==HOURS_ONLY || bt_received_string_data[3]==DATE)
                 {
                     store_ee_settings_partial(ee_show3,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1857,7 +1875,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 break;
             case 'd':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE  || bt_received_string_data[3]==MINUTES_ONLY  || bt_received_string_data[3]==HOURS_ONLY || bt_received_string_data[3]==DATE)
                 {
                     store_ee_settings_partial(ee_show4,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1873,7 +1891,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 break;
             case 'e':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE  || bt_received_string_data[3]==MINUTES_ONLY  || bt_received_string_data[3]==HOURS_ONLY || bt_received_string_data[3]==DATE)
                 {
                     store_ee_settings_partial(ee_show5,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -1889,7 +1907,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 }
                 break;
             case 'f':
-                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE)
+                if(bt_received_string_data[3]==NOTHING || bt_received_string_data[3]==DEADLINEDOTS || bt_received_string_data[3]==TIMEDOTS || bt_received_string_data[3]==TIMECLOCK || bt_received_string_data[3]==IMAGEDOTS || bt_received_string_data[3]==WEATHER || bt_received_string_data[3]==MESSAGE || bt_received_string_data[3]==PAUSE  || bt_received_string_data[3]==MINUTES_ONLY  || bt_received_string_data[3]==HOURS_ONLY || bt_received_string_data[3]==DATE)
                 {
                     store_ee_settings_partial(ee_show6,bt_received_string_data[3]);
                     parameter_number_handler(bt_received_string_data,99,1,5);
@@ -2834,7 +2852,7 @@ static void show_date(uint16_t howlong_ms)
     PCF85063_gettime();
     if(time_correct)
     {
-        display_img(calendar_img, true, BRO0);
+        display_img(calendar_img, false, BRO0);
         nrf_delay_ms(DISP_NOTIFY_MS);
 
               if(brocount==3)
@@ -2842,9 +2860,9 @@ static void show_date(uint16_t howlong_ms)
                     for(i=0; i<refreshes; i++)
                     {
                         PCF85063_gettime();
-                        display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,true,BRO0);
-                        display_double_digits_bcd((rtctime[rtctime_mon]&mask_mon_t)>>4,rtctime[rtctime_mon]&mask_mon_u,true,BRO1);
-                        display_double_digits_bcd((rtctime[rtctime_year]&mask_yr_t)>>4,rtctime[rtctime_year]&mask_yr_u,true,BRO2);
+                        display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,(rtctime[rtctime_day]&mask_day_u),false,BRO0);
+                        display_double_digits_bcd((rtctime[rtctime_mon]&mask_mon_t)>>4,(rtctime[rtctime_mon]&mask_mon_u),false,BRO1);
+                        display_double_digits_bcd((rtctime[rtctime_year]&mask_yr_t)>>4,(rtctime[rtctime_year]&mask_yr_u),false,BRO2);
                         nrf_delay_ms(DISP_REFRESH_MS);
                     }
 
@@ -2854,18 +2872,17 @@ static void show_date(uint16_t howlong_ms)
                     for(i=0; i<refreshes; i++)
                     {
                         PCF85063_gettime();
-                        display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,true,BRO0);
-                        display_double_digits_bcd((rtctime[rtctime_mon]&mask_mon_t)>>4,rtctime[rtctime_mon]&mask_mon_u,true,BRO1);
+                        display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,(rtctime[rtctime_day]&mask_day_u),false,BRO0);
+                        display_double_digits_bcd((rtctime[rtctime_mon]&mask_mon_t)>>4,(rtctime[rtctime_mon]&mask_mon_u),false,BRO1);
                         nrf_delay_ms(DISP_REFRESH_MS);
                     }
                 }
               else if(brocount==1)//DO NOT REFRESH MIDTIME FOR BROCOUNT=1 AS TO NOT CONFUSE THE USER
                 {
-                    display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,true,BRO0);
+
+                    display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,(rtctime[rtctime_day]&mask_day_u),false,BRO0);
                     nrf_delay_ms(howlong_ms);
                 }
-
-        
     }
     else
     {
