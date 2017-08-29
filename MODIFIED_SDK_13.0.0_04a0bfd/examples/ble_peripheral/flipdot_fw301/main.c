@@ -114,6 +114,11 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define CURRENT_SKU                     'G'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 #define BRO_ENABLED                     '1' // '0' for devices that come without tranceivers //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT BRO OPTIONS
 
+
+#define DISP_NOTIFY_MS 200
+#define DISP_REFRESH_MS 100
+
+
 /*
 "FLIP.CLOCK BLUE"
   CURRENT_SKU 'B'
@@ -195,6 +200,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define WEATHER    				'6'
 #define HOURS_ONLY 			'7'
 #define MINUTES_ONLY 				'8'
+#define DATE                '9'
 #define PAUSE                                   'A'
 
 #define HRS_24    				'1'
@@ -459,8 +465,9 @@ const uint8_t pm_img[7] = {0x07, 0x05, 0x05, 0x07, 0x04, 0x04, 0x04};
 const uint8_t three_dots_img[7] = {0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00};
 const uint8_t plus_img[7] = {0x00, 0x08, 0x08, 0x3e, 0x08, 0x08, 0x00};
 const uint8_t sleep_img[7] = {0x00, 0x00, 0x77, 0x00, 0x08, 0x00, 0x00};
-const uint8_t countdown_timer_img[7] = {0x3E, 0x22, 0x14, 0x08, 0x1C, 0x3E, 0x3E};
-
+const uint8_t deadline_timer_img[7] = {0x3E, 0x22, 0x14, 0x08, 0x1C, 0x3E, 0x3E};
+const uint8_t countdown_img[7] = {0x00, 0x3E, 0x14, 0x08, 0x14, 0x3E, 0x00};
+const uint8_t calendar_img[7] = {0x00, 0x2A, 0x00, 0x2A, 0x00, 0x00, 0x00};
 
 int32_t divRoundClosest(const int32_t n, const int32_t d)
 {
@@ -1375,9 +1382,9 @@ static void display_ddl_ended_anim(void)
   uint8_t i;
   for(i=0; i<4; i++)
   {
-    display_img(countdown_timer_img, false, BRO0);
-    display_img(countdown_timer_img, false, BRO1);
-    display_img(countdown_timer_img, false, BRO2);
+    display_img(deadline_timer_img, false, BRO0);
+    display_img(deadline_timer_img, false, BRO1);
+    display_img(deadline_timer_img, false, BRO2);
     nrf_delay_ms(600);
 
                     disp_clear_buffer(BRO0);
@@ -2736,19 +2743,18 @@ uint32_t display_dots_timeratio(uint32_t timeleft_mins,uint32_t timetotal_mins)
 //@N5UHA7
 static void show_DEADLINEDOTS(uint16_t howlong_ms)
 {
-
+    uint8_t refreshes, i;
+    refreshes = howlong_ms/DISP_REFRESH_MS;
 
     int32_t timetotal_secs, timeleft_secs;
-    uint8_t i;
+
     PCF85063_gettime();
     if(time_correct)
     {
         switch(ee_settings[ee_ddl_status])
         {
         case STARTED:
-           for(i=0; i<4; i++)
-           {
-              timetotal_secs = DatDif(
+            timetotal_secs = DatDif(
                                       ee_settings[ee_ddl_start_sec],
                                       ee_settings[ee_ddl_start_min],
                                       ee_settings[ee_ddl_start_hr],
@@ -2762,15 +2768,16 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
                                       ee_settings[ee_ddl_end_mon],
                                       ee_settings[ee_ddl_end_yr]+1000
                                         );
-              if(timetotal_secs<=0)
-              {
+            if(timetotal_secs<=0)
+            {
                   ble_nus_string_send(&m_nus,"DDL NEG ETA\n",12);
                   break;
-              }
+            }
+            for(i=0; i<refreshes; i++)
+            {
 
-
-              //now stores in days
-              timeleft_secs = DatDif(
+                //now stores in days
+                timeleft_secs = DatDif(
                                      rtctimehex[rtctime_sec],
                                      rtctimehex[rtctime_min],
                                      rtctimehex[rtctime_hour],
@@ -2785,17 +2792,18 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
                                      ee_settings[ee_ddl_end_yr]+1000
                                        );
 
-              if(timeleft_secs<=0)
-              {
-                  ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
-                  store_ee_settings_partial(ee_ddl_status, ENDED);
-                  display_ddl_ended_anim();
-              }
-              else
-              {
-                  display_dots_timeratio(timeleft_secs,timetotal_secs);
-                  nrf_delay_ms(howlong_ms/4);
-              }
+                if(timeleft_secs<=0)
+                {
+                      ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
+                      store_ee_settings_partial(ee_ddl_status, ENDED);
+                      display_ddl_ended_anim();
+                      break;
+                }
+                else
+                {
+                      display_dots_timeratio(timeleft_secs,timetotal_secs);
+                      nrf_delay_ms(DISP_REFRESH_MS);
+                }
 
            }
         case ENDED:
@@ -2804,7 +2812,7 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
         default:
             display_img(three_dots_img, false, BRO0);
             ble_nus_string_send(&m_nus,"DDL NOT STARTED\n",16);
-            nrf_delay_ms(howlong_ms);
+            nrf_delay_ms(DISP_NOTIFY_MS);
             break;
         }
     }
@@ -2812,7 +2820,7 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
     {
       ///time incorrect?
       display_img(bad_clock_img, false, BRO0);
-      nrf_delay_ms(howlong_ms);
+      nrf_delay_ms(DISP_NOTIFY_MS);
     }
     
 }
@@ -2820,43 +2828,90 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
 //@BKWMI0
 static void show_date(uint16_t howlong_ms)
 {
+    uint8_t refreshes, i;
+    refreshes = howlong_ms/DISP_REFRESH_MS;
+
     PCF85063_gettime();
     if(time_correct)
     {
-      if(brocount==3)
-        {
-                ///d/
-        }
-      else if(brocount==2)
-        {
-                ///d/
-        }
-      else if(brocount==1)
-        {
-            display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,1,BRO0);
-        }
+        display_img(calendar_img, true, BRO0);
+        nrf_delay_ms(DISP_NOTIFY_MS);
 
+              if(brocount==3)
+                {
+                    for(i=0; i<refreshes; i++)
+                    {
+                        display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,true,BRO0);
+                        display_double_digits_bcd((rtctime[rtctime_mon]&mask_mon_t)>>4,rtctime[rtctime_mon]&mask_mon_u,true,BRO1);
+                        display_double_digits_bcd((rtctime[rtctime_year]&mask_yr_t)>>4,rtctime[rtctime_year]&mask_yr_u,true,BRO2);
+                        nrf_delay_ms(DISP_REFRESH_MS);
+                    }
+
+                }
+              else if(brocount==2)
+                {
+                    for(i=0; i<refreshes; i++)
+                    {
+                        display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,true,BRO0);
+                        display_double_digits_bcd((rtctime[rtctime_mon]&mask_mon_t)>>4,rtctime[rtctime_mon]&mask_mon_u,true,BRO1);
+                        nrf_delay_ms(DISP_REFRESH_MS);
+                    }
+                }
+              else if(brocount==1)//DO NOT REFRESH MIDTIME FOR BROCOUNT=1 AS TO NOT CONFUSE THE USER
+                {
+                    display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,true,BRO0);
+                    nrf_delay_ms(howlong_ms);
+                }
+
+        
     }
     else
     {
         ///time incorrect?
-        display_img(bad_clock_img, false, BRO0);
-        
+        display_img(bad_clock_img, false, BRO0);   
+        nrf_delay_ms(DISP_NOTIFY_MS);
     }
-
-    nrf_delay_ms(howlong_ms);
 }
 
+/*
 //@LJICQZ
 static void show_countdown_timer(uint16_t howlong_ms)
 {
+    uint8_t refreshes, i;
+    refreshes = howlong_ms/DISP_REFRESH_MS;
 
+    PCF85063_gettime();
+    if(time_correct)
+    {
+        for(i=0; i<refreshes; i++)
+        {
 
-
-
-
+              if(brocount==3)
+                {
+                    display_img(countdown_img, true, BRO0);
+                    disp_clear_buffer(BRO1);
+                    display_double_digits_bcd(x,y,true,BRO2);
+                }
+              else if(brocount==2)
+                {
+                    display_img(countdown_img, true, BRO0);
+                    display_double_digits_bcd(x,y,true,BRO1);
+                }
+              else if(brocount==1)
+                {
+                    display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,true,BRO0);
+                }
+            nrf_delay_ms(DISP_REFRESH_MS);  
+        } 
+    }
+    else
+    {
+        ///time incorrect?
+        display_img(bad_clock_img, false, BRO0); 
+        nrf_delay_ms(DISP_NOTIFY_MS);     
+    }
 }
-
+*/
 
 static void show_timedots(uint16_t howlong_ms)
 {
@@ -2932,8 +2987,8 @@ static bool OPT3001_check_if_nightmode(void)
 
 static void show_timeclock(uint16_t howlong_ms)
 {
-
-    uint8_t i;
+    uint8_t refreshes,i;
+    refreshes = howlong_ms/DISP_REFRESH_MS;
 
     PCF85063_gettime();
     if(time_correct)
@@ -2942,20 +2997,20 @@ static void show_timeclock(uint16_t howlong_ms)
         {
             if(ee_settings[ee_t_format]==HRS_24)
             {
-                for (i=0; i<10; i++)
+                for (i=0; i<refreshes; i++)
                 {
-                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
-                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
-                    display_double_digits_bcd((rtctime[rtctime_sec]&mask_60_t)>>4, rtctime[rtctime_sec]&mask_60_u,0,BRO2);
-                    nrf_delay_ms(howlong_ms/10);
+                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,false,BRO0);
+                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,false,BRO1);
+                    display_double_digits_bcd((rtctime[rtctime_sec]&mask_60_t)>>4, rtctime[rtctime_sec]&mask_60_u,false,BRO2);
+                    nrf_delay_ms(DISP_REFRESH_MS);  
                 }
             }
             else//12 hour format
             {
-                for (i=0; i<5; i++)
+                for (i=0; i<refreshes; i++)
                 {
-                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
-                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
+                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,false,BRO0);
+                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,false,BRO1);
                     if(rtctime[rtctime_hour]&mask_ampm)///check if the register is correct here
                     {
                         display_img(pm_img,false,BRO2);
@@ -2964,7 +3019,7 @@ static void show_timeclock(uint16_t howlong_ms)
                     {
                         display_img(am_img,false,BRO2);
                     }
-                    nrf_delay_ms(howlong_ms/5);
+                    nrf_delay_ms(DISP_REFRESH_MS);  
                 }
             }
         }
@@ -2972,46 +3027,46 @@ static void show_timeclock(uint16_t howlong_ms)
         {
             if(ee_settings[ee_t_format]==HRS_24)
             {
-                for (i=0; i<5; i++)
+                for (i=0; i<refreshes; i++)
                 {
                     PCF85063_gettime();
-                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
-                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
-                    nrf_delay_ms(howlong_ms/5);
+                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,false,BRO0);
+                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,false,BRO1);
+                    nrf_delay_ms(DISP_REFRESH_MS);  
                 }
             }
             else
             {
-                for (i=0; i<5; i++)
+                for (i=0; i<refreshes; i++)
                 {
                     PCF85063_gettime();
-                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
-                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
-                    nrf_delay_ms(howlong_ms/5);
+                    display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,false,BRO0);
+                    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,false,BRO1);
+                    nrf_delay_ms(DISP_REFRESH_MS);  
                 }
             }
         }
-        else if(brocount==1)
+        else if(brocount==1)//do not refresh for single display
         {
             if(ee_settings[ee_t_format]==HRS_24)
             {
                 PCF85063_gettime();
-                display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
+                display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,false,BRO0);
                 nrf_delay_ms((howlong_ms*2)/5);
                 display_symbol(stngs_t_sep[ee_settings[ee_t_sep]-'0'],false,BRO0);
                 nrf_delay_ms((howlong_ms)/5);
-                display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
+                display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,false,BRO0);
                 nrf_delay_ms((howlong_ms*2)/5);
             }
             else
             {
-                display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
+                display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,false,BRO0);
                 nrf_delay_ms((howlong_ms/3));
                 display_symbol(stngs_t_sep[ee_settings[ee_t_sep]-'0'],false,BRO0);
                 nrf_delay_ms((howlong_ms/6));
-                display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
+                display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,false,BRO0);
                 nrf_delay_ms((howlong_ms/3));
-                if(rtctime[rtctime_hour]&mask_ampm)///check if the register is correct here
+                if(rtctime[rtctime_hour]&mask_ampm)
                 {
                     display_img(pm_img,false,BRO0);
                 }
@@ -3034,8 +3089,8 @@ static void show_timeclock(uint16_t howlong_ms)
     else
     {
             ///time incorrect?
-      display_img(bad_clock_img, false, BRO0);
-      nrf_delay_ms(howlong_ms);
+        display_img(bad_clock_img, false, BRO0);
+        nrf_delay_ms(DISP_NOTIFY_MS); 
     }
 
 }
@@ -3044,37 +3099,60 @@ static void show_timeclock(uint16_t howlong_ms)
 
 static void show_minutes_only(uint16_t howlong_ms)
 {
-
+    uint8_t refreshes, i;
+    refreshes = howlong_ms/DISP_REFRESH_MS;
     PCF85063_gettime();
-    display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
-    nrf_delay_ms(howlong_ms);
 
-    disp_clear_buffer(BRO0);
-    disp_clear_buffer(BRO1);
-    disp_clear_buffer(BRO2);
-
-//   display_symbol(' ',time_sep_speed_table[ee_settings[ee_t_speed]],0);
-    display_busy=0;
+    if(time_correct)
+    {
+        for (i=0; i<refreshes; i++)
+        {
+            display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
+            nrf_delay_ms(DISP_REFRESH_MS);
+        }
+        disp_clear_buffer(BRO0);
+        disp_clear_buffer(BRO1);
+        disp_clear_buffer(BRO2);
+    }
+    else
+    {
+            ///time incorrect?
+        display_img(bad_clock_img, false, BRO0);
+        nrf_delay_ms(DISP_NOTIFY_MS); 
+    }
 
 }
 
 static void show_hours_only(uint16_t howlong_ms)
 {
+    uint8_t refreshes, i;
+    refreshes = howlong_ms/DISP_REFRESH_MS;
     PCF85063_gettime();
-    if(ee_settings[ee_t_format]==HRS_24)
+
+    if(time_correct)
     {
-        display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
+        for (i=0; i<refreshes; i++)
+        {
+            if(ee_settings[ee_t_format]==HRS_24)
+            {
+                display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
+            }
+            else
+            {
+                display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
+            }
+            nrf_delay_ms(DISP_REFRESH_MS);
+        }
+        disp_clear_buffer(BRO0);
+        disp_clear_buffer(BRO1);
+        disp_clear_buffer(BRO2);
     }
     else
     {
-        display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
+            ///time incorrect?
+        display_img(bad_clock_img, false, BRO0);
+        nrf_delay_ms(DISP_NOTIFY_MS); 
     }
-
-    nrf_delay_ms(howlong_ms);
-
-    disp_clear_buffer(BRO0);
-    disp_clear_buffer(BRO1);
-    disp_clear_buffer(BRO2);
 
 }
 //@QD08WZ
@@ -3181,15 +3259,18 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
         case HOURS_ONLY:
             show_hours_only(howlong_ms);
             break;
+        case DATE:
+            show_date(howlong_ms);
+        break;
         case NOTHING:
             break;
 
         default:
                                     // blank
-                    disp_clear_buffer(BRO0);
-                    disp_clear_buffer(BRO1);
-                    disp_clear_buffer(BRO2);
-                    disp_refresh();
+            disp_clear_buffer(BRO0);
+            disp_clear_buffer(BRO1);
+            disp_clear_buffer(BRO2);
+            disp_refresh();
             nrf_delay_ms(howlong_ms);
             break;
         }

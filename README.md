@@ -2,7 +2,6 @@
 
 
 ### to-do fixes:
-* independent refresh speed from chosen show time on all shown items 
 
 
 ### to-do features:
