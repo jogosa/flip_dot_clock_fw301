@@ -109,10 +109,10 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 
 
 
-#define CURRENT_VERSION_TOKEN           '!'                             //change everytime there is a need to restore eeprom settings to defaults
+#define CURRENT_VERSION_TOKEN           'm'                             //change everytime there is a need to restore eeprom settings to defaults
 #define DEVICE_NAME                     "FLIP.CLOCK GREEN"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 #define CURRENT_SKU                     'G'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
-#define BRO_ENABLED                     '1' // '0' for devices that come without tranceivers //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT BRO OPTIONS
+#define BRO_ENABLED                     '0' // '0' for devices that come without tranceivers //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT BRO OPTIONS
 
 
 #define DISP_NOTIFY_MS 600
@@ -150,7 +150,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define reserved1              3
 #define ee_msg_speed            4
 #define ee_msg_len              5
-#define reserved2              6
+#define ee_image_status              6
 #define ee_sys_calibrationtoken 7
 #define ee_sys_broenabled               8
 #define ee_darknightmode_lowlimit         9
@@ -188,8 +188,8 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define ee_show4_time           41
 #define ee_show5_time           42
 #define ee_show6_time           43
-#define ee_message_text         44
-
+#define ee_image                44
+#define ee_message_text         65
 
 #define NOTHING    				'0'
 #define DEADLINEDOTS    			'1'
@@ -386,12 +386,12 @@ uint8_t display_buffer[21] =
     0xee, 0xb4, 0x72, 0xa5, 0xbb, 0x21, 0x0d//bro3
 };
 
-bool display_busy=false,countdown_timer_running=false,countdown_timer_setup_mode=false,draw_mode=false, time_correct=false, dark_mode_check=false;
+bool countdown_timer_running=false,countdown_timer_setup_mode=false,draw_mode=false, time_correct=false, dark_mode_check=false;
 uint8_t countm=0, current_bro=BRO0, brocount=1;
 uint16_t refresh_speed_scroll,refresh_speed_time,refresh_speed_time_sep,stepj=0, countdown_timer=0,times_ups=0;
 uint32_t number_handler_status=0;
 
-uint8_t ee_settings[144]="";
+uint8_t ee_settings[250]="";
 uint8_t stngs_t_sep[4]= {':',0x27,'.',';'};
 uint8_t stngs_d_sep[4]= {'/','-',',',' '};
 uint8_t disp_tx_buffer[11]= {DISPLAY_HEAD,DISPLAY_INSTANT,DISPLAY_ADDR,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,DISPLAY_END};
@@ -572,7 +572,7 @@ static void uart_send(uint8_t * p_data, uint16_t length)
 
 static void disp_refresh(void)
 {
-    unsigned char i;
+    unsigned char i,j;
 
     disp_tx_buffer[3]=0;
     disp_tx_buffer[4]=0;
@@ -582,17 +582,19 @@ static void disp_refresh(void)
     disp_tx_buffer[8]=0;
     disp_tx_buffer[9]=0;
 
+    j=bro_disp_buf_addr[current_bro];
+
     for (i=0; i<7; i++)
     {
 
         //mirror image and copy
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x01)<<6;
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x02)<<4;
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x04)<<2;
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x08);
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x10)>>2;
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x20)>>4;
-        disp_tx_buffer[i+3] |= (display_buffer[i+bro_disp_buf_addr[current_bro]] & 0x40)>>6;
+        disp_tx_buffer[i+3] |= (display_buffer[i+j] & 0x01)<<6;
+        disp_tx_buffer[i+3] |= (display_buffer[i+j] & 0x02)<<4;
+        disp_tx_buffer[i+3] |= (display_buffer[i+j] & 0x04)<<2;
+        disp_tx_buffer[i+3] |= (display_buffer[i+j] & 0x08);
+        disp_tx_buffer[i+3] |= (display_buffer[i+j] & 0x10)>>2;
+        disp_tx_buffer[i+3] |= (display_buffer[i+j] & 0x20)>>4;
+        disp_tx_buffer[i+3] |= (display_buffer[i+j] & 0x40)>>6;
     }
     uart_send(disp_tx_buffer,sizeof(disp_tx_buffer));
 }
@@ -776,7 +778,7 @@ static void disp_invert_buffer(uint8_t bro)
 static void display_img(const uint8_t *image, uint8_t invert, uint8_t bro)
 {
     uint8_t i;
-    display_busy=1;
+    
 
     //copy from one buffer to the other
     for (i=0; i<7; i++)
@@ -823,11 +825,12 @@ static void write_default_ee_settings(void)
     ee_settings[ee_t_sep]='0';
     ee_settings[ee_msg_speed]=5;
     ee_settings[ee_msg_len]=4;
+    ee_settings[ee_image_status]='0';
 //    ee_settings[ee_sys_calibrationtoken]=0xFF;//reset calibration validness
     ee_settings[ee_darknightmode_lowlimit]=1;
     ee_settings[ee_darknightmode_highlimit]=2;
     ee_settings[ee_darknightmode]='1';
-    ee_settings[ee_cal]=0;
+//    ee_settings[ee_cal]=0;
     ee_settings[ee_ddl_status]='0';
     //  ee_settings[ee_ddl_yr]='';
     //  ee_settings[ee_ddl_mon]='';
@@ -857,6 +860,29 @@ static void write_default_ee_settings(void)
     ee_settings[ee_message_text+1]='E';
     ee_settings[ee_message_text+2]='Y';
     ee_settings[ee_message_text+3]='!';
+
+    ee_settings[ee_image]=0x1F;
+    ee_settings[ee_image+1]=0xff;
+    ee_settings[ee_image+2]=0xec;
+    ee_settings[ee_image+3]=0xff;
+    ee_settings[ee_image+4]=0xad;
+    ee_settings[ee_image+5]=0xff;
+    ee_settings[ee_image+6]=0x01;
+    ee_settings[ee_image+7]=0x0f;
+    ee_settings[ee_image+8]=0x0e;
+    ee_settings[ee_image+9]=0x0f;
+    ee_settings[ee_image+10]=0x2a;
+    ee_settings[ee_image+11]=0xff;
+    ee_settings[ee_image+12]=0x6b;
+    ee_settings[ee_image+13]=0xff;
+    ee_settings[ee_image+14]=0x76;
+    ee_settings[ee_image+15]=0xd5;
+    ee_settings[ee_image+16]=0xff;
+    ee_settings[ee_image+17]=0xe5;
+    ee_settings[ee_image+18]=0xcd;
+    ee_settings[ee_image+19]=0x5d;
+    ee_settings[ee_image+20]=0x01;
+
     
     store_ee_settings();
     
@@ -1322,7 +1348,7 @@ static void display_symbol(uint8_t symbol, uint8_t invert,uint8_t bro)
     uint8_t i,symbolshift=0;
     uint8_t h=symbol_adress_translate(symbol);
 
-    display_busy=1;
+
     disp_clear_buffer(bro);
 
     switch(symbol_len_map[h])//shift symbol for center justification
@@ -1428,7 +1454,7 @@ static void check_darknightmode(void)
 
 
 //is leap year in Gregorian
-bool IsLeapG(uint16_t yr){
+static bool IsLeapG(uint16_t yr){
   if(((((yr%400)==0)||((yr%100)!=0))&&((yr%4)==0))){
     return true;
   }else{
@@ -1436,7 +1462,7 @@ bool IsLeapG(uint16_t yr){
   }
 }//end IsLeapG
 
-int32_t Godn(int32_t yy1,int32_t yy2)
+static int32_t Godn(int32_t yy1,int32_t yy2)
 { 
   int32_t jj,bb;
   bb=0;
@@ -1448,7 +1474,7 @@ int32_t Godn(int32_t yy1,int32_t yy2)
 }// end Godn
 
 //Day of the Year
-int32_t rbdug(uint8_t d,uint8_t m,uint16_t y)
+static int32_t rbdug(uint8_t d,uint8_t m,uint16_t y)
 { 
   int32_t a,r[13];
   r[1] = 0; r[2] = 31; r[3] = 59; r[4] = 90;
@@ -1459,8 +1485,10 @@ int32_t rbdug(uint8_t d,uint8_t m,uint16_t y)
   return(a);
 }//end rbdug
 
+/////
+/*
 //date validity
-bool IsValid(uint8_t dd,uint8_t mm,uint16_t yy)
+static bool IsValid(uint8_t dd,uint8_t mm,uint16_t yy)
 { 
   int32_t v[13];
   if((0 < mm) && (mm < 13)){
@@ -1477,14 +1505,14 @@ bool IsValid(uint8_t dd,uint8_t mm,uint16_t yy)
     return false;
   }
 }//end IsValid
+*/
 
-
-int32_t smh_dif(uint8_t s1,uint8_t m1,uint8_t h1,uint8_t s2,uint8_t m2,uint8_t h2)
+static int32_t smh_dif(uint8_t s1,uint8_t m1,uint8_t h1,uint8_t s2,uint8_t m2,uint8_t h2)
 {
   return ((s2+(m2*60)+(h2*3600))   -   (s1+(m1*60)+(h1*3600)));      
 }
 
-int32_t DatDif(uint8_t s1, uint8_t n1, uint8_t h1, uint8_t d1,uint8_t m1,uint16_t y1,uint8_t s2, uint8_t n2, uint8_t h2, uint8_t d2,uint8_t m2,uint16_t y2)
+static int32_t DatDif(uint8_t s1, uint8_t n1, uint8_t h1, uint8_t d1,uint8_t m1,uint16_t y1,uint8_t s2, uint8_t n2, uint8_t h2, uint8_t d2,uint8_t m2,uint16_t y2)
 { 
   int32_t suma;
   suma=rbdug(d2,m2,y2) - rbdug(d1,m1,y1);
@@ -1501,9 +1529,27 @@ int32_t DatDif(uint8_t s1, uint8_t n1, uint8_t h1, uint8_t d1,uint8_t m1,uint16_
 }// end DatDif
 
 
+static uint8_t ascii_to_hex_handler(uint8_t chara,uint8_t charb)
+{
+
+    if (chara > '9') 
+    { 
+       chara += 9; 
+    }
+    chara &= 0x0F;
+
+    if (charb > '9') 
+    { 
+       charb += 9; 
+    }
+    charb &= 0x0F;
 
 
-void command_responder(uint8_t * bt_received_string_data)
+    return(chara<<4 | charb);
+
+}
+
+static void command_responder(uint8_t * bt_received_string_data)
 {
     if(bt_received_string_data[2]==',')
     {
@@ -1818,6 +1864,28 @@ void command_responder(uint8_t * bt_received_string_data)
                     break;
                 }
                 break;
+            case 'n'://@ZSYA2S //new: program image
+
+                if((bt_received_string_data[17]==',')&&(bt_received_string_data[18]<'3')&&(bt_received_string_data[18]>='0'))
+                {
+                    uint8_t i;
+
+                    for(i=0; i<7; i++)
+                    {
+                        ee_settings[ee_image+i+bro_disp_buf_addr[(bt_received_string_data[18]-'0')]]=ascii_to_hex_handler(bt_received_string_data[3+(i*2)],bt_received_string_data[4+(i*2)]);
+                    }
+                    ee_settings[ee_image_status]='1';//a legit image has been saved
+
+
+                    store_ee_settings();
+                    command_reply_ok();
+                }
+                else
+                {
+                    command_reply_nope();
+                }
+
+             break;
             default:
                 command_reply_questionmark();
                 break;
@@ -2137,6 +2205,26 @@ void command_responder(uint8_t * bt_received_string_data)
                 {
                     display_pixel(parameter_number_handler(bt_received_string_data,20,0,3),parameter_number_handler(bt_received_string_data,6,0,6),false,parameter_number_handler(bt_received_string_data,2,0,9));
                     command_reply_ok();
+                }
+                break;
+
+
+            case 'f'://@YFFPBO  //new: display image directly
+                
+                if((bt_received_string_data[17]==',')&&(bt_received_string_data[18]<'3')&&(bt_received_string_data[18]>='0'))
+                {
+                    uint8_t i;
+
+                    for(i=0; i<7; i++)
+                    {
+                        display_buffer[i+bro_disp_buf_addr[(bt_received_string_data[18]-'0')]]=ascii_to_hex_handler(bt_received_string_data[3+(i*2)],bt_received_string_data[4+(i*2)]);
+                    }
+                    disp_refresh();
+                    command_reply_ok();
+                }
+                else
+                {
+                    command_reply_nope();
                 }
                 break;
             default:
@@ -2697,7 +2785,7 @@ static void show_message(uint8_t howlong)
 
     /*
     char i=0,h=0,symbolen=0,symbolshift=0,string_pos=0;
-        display_busy=1;
+
         disp_clear_buffer(BRO0);
         disp_clear_buffer(BRO1);
         disp_clear_buffer(BRO2);
@@ -2727,7 +2815,7 @@ static void show_message(uint8_t howlong)
         disp_clear_buffer(BRO2);
 
         display_symbol(' ',refresh_speed_time_sep,0);
-        display_busy=0;
+
     */
 }
 
@@ -3181,9 +3269,20 @@ static void show_hours_only(uint16_t howlong_ms)
 //@QD08WZ
 static void show_imagedots(uint16_t howlong_ms)
 {
+    uint8_t i;
+
+    read_ee_settings();
 
 
 
+
+    for (i=0; i<21; i++)
+    {
+        display_buffer[i]=ee_settings[i+ee_image];
+    }
+    disp_refresh();
+
+    nrf_delay_ms(howlong_ms); 
 
 }
 
