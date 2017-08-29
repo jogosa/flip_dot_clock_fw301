@@ -2847,6 +2847,17 @@ static void show_date(uint16_t howlong_ms)
     nrf_delay_ms(howlong_ms);
 }
 
+//@LJICQZ
+static void show_countdown_timer(uint16_t howlong_ms)
+{
+
+
+
+
+
+}
+
+
 static void show_timedots(uint16_t howlong_ms)
 {
     PCF85063_gettime();
