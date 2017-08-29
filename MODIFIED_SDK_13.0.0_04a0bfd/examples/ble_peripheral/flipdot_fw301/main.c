@@ -2743,7 +2743,7 @@ uint32_t display_dots_timeratio(uint32_t timeleft_mins,uint32_t timetotal_mins)
 //@N5UHA7
 static void show_DEADLINEDOTS(uint16_t howlong_ms)
 {
-    uint8_t refreshes, i;
+    uint16_t refreshes, i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
 
     int32_t timetotal_secs, timeleft_secs;
@@ -2770,11 +2770,11 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
                                         );
             if(timetotal_secs<=0)
             {
-                  ble_nus_string_send(&m_nus,"DDL NEG ETA\n",12);
-                  break;
+                ble_nus_string_send(&m_nus,"DDL NEG ETA\n",12);
             }
             for(i=0; i<refreshes; i++)
             {
+                PCF85063_gettime();
 
                 //now stores in days
                 timeleft_secs = DatDif(
@@ -2794,19 +2794,19 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
 
                 if(timeleft_secs<=0)
                 {
-                      ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
-                      store_ee_settings_partial(ee_ddl_status, ENDED);
-                      display_ddl_ended_anim();
-                      break;
+                    store_ee_settings_partial(ee_ddl_status, ENDED);
+                    break;
                 }
                 else
                 {
-                      display_dots_timeratio(timeleft_secs,timetotal_secs);
-                      nrf_delay_ms(DISP_REFRESH_MS);
+                    display_dots_timeratio(timeleft_secs,timetotal_secs);
+                    nrf_delay_ms(DISP_REFRESH_MS);
                 }
 
            }
+           break;
         case ENDED:
+            ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
             display_ddl_ended_anim();
             break;
         default:
@@ -2828,7 +2828,7 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
 //@BKWMI0
 static void show_date(uint16_t howlong_ms)
 {
-    uint8_t refreshes, i;
+    uint16_t refreshes, i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
 
     PCF85063_gettime();
@@ -2841,6 +2841,7 @@ static void show_date(uint16_t howlong_ms)
                 {
                     for(i=0; i<refreshes; i++)
                     {
+                        PCF85063_gettime();
                         display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,true,BRO0);
                         display_double_digits_bcd((rtctime[rtctime_mon]&mask_mon_t)>>4,rtctime[rtctime_mon]&mask_mon_u,true,BRO1);
                         display_double_digits_bcd((rtctime[rtctime_year]&mask_yr_t)>>4,rtctime[rtctime_year]&mask_yr_u,true,BRO2);
@@ -2852,6 +2853,7 @@ static void show_date(uint16_t howlong_ms)
                 {
                     for(i=0; i<refreshes; i++)
                     {
+                        PCF85063_gettime();
                         display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,true,BRO0);
                         display_double_digits_bcd((rtctime[rtctime_mon]&mask_mon_t)>>4,rtctime[rtctime_mon]&mask_mon_u,true,BRO1);
                         nrf_delay_ms(DISP_REFRESH_MS);
@@ -2877,7 +2879,7 @@ static void show_date(uint16_t howlong_ms)
 //@LJICQZ
 static void show_countdown_timer(uint16_t howlong_ms)
 {
-    uint8_t refreshes, i;
+    uint16_t refreshes, i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
 
     PCF85063_gettime();
@@ -2987,7 +2989,7 @@ static bool OPT3001_check_if_nightmode(void)
 
 static void show_timeclock(uint16_t howlong_ms)
 {
-    uint8_t refreshes,i;
+    uint16_t refreshes,i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
 
     PCF85063_gettime();
@@ -2999,6 +3001,7 @@ static void show_timeclock(uint16_t howlong_ms)
             {
                 for (i=0; i<refreshes; i++)
                 {
+                    PCF85063_gettime();
                     display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,false,BRO0);
                     display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,false,BRO1);
                     display_double_digits_bcd((rtctime[rtctime_sec]&mask_60_t)>>4, rtctime[rtctime_sec]&mask_60_u,false,BRO2);
@@ -3009,6 +3012,7 @@ static void show_timeclock(uint16_t howlong_ms)
             {
                 for (i=0; i<refreshes; i++)
                 {
+                    PCF85063_gettime();
                     display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,false,BRO0);
                     display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,false,BRO1);
                     if(rtctime[rtctime_hour]&mask_ampm)///check if the register is correct here
@@ -3099,7 +3103,7 @@ static void show_timeclock(uint16_t howlong_ms)
 
 static void show_minutes_only(uint16_t howlong_ms)
 {
-    uint8_t refreshes, i;
+    uint16_t refreshes, i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
     PCF85063_gettime();
 
@@ -3107,6 +3111,7 @@ static void show_minutes_only(uint16_t howlong_ms)
     {
         for (i=0; i<refreshes; i++)
         {
+            PCF85063_gettime();
             display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
             nrf_delay_ms(DISP_REFRESH_MS);
         }
@@ -3125,7 +3130,7 @@ static void show_minutes_only(uint16_t howlong_ms)
 
 static void show_hours_only(uint16_t howlong_ms)
 {
-    uint8_t refreshes, i;
+    uint16_t refreshes, i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
     PCF85063_gettime();
 
@@ -3133,6 +3138,7 @@ static void show_hours_only(uint16_t howlong_ms)
     {
         for (i=0; i<refreshes; i++)
         {
+            PCF85063_gettime();
             if(ee_settings[ee_t_format]==HRS_24)
             {
                 display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
