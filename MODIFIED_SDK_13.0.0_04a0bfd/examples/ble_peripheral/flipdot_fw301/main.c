@@ -112,6 +112,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define CURRENT_VERSION_TOKEN           '!'                             //change everytime there is a need to restore eeprom settings to defaults
 #define DEVICE_NAME                     "FLIP.CLOCK GREEN"               /**< Name of device. Will be included in the advertising data. */     //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
 #define CURRENT_SKU                     'G'                                                                                                   //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT COLORS
+#define BRO_ENABLED                     '1' // '0' for devices that come without tranceivers //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT BRO OPTIONS
 
 /*
 "FLIP.CLOCK BLUE"
@@ -810,12 +811,12 @@ static void write_default_ee_settings(void)
 {
 
     ee_settings[ee_sys_defaultstoken]=EMPTY;
-//    ee_settings[ee_sys_broenabled]='0';                 //disable for devices that come without tranceivers //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT BRO OPTIONS
+    ee_settings[ee_sys_broenabled]=BRO_ENABLED;                 
     ee_settings[ee_t_format]=HRS_24;
     ee_settings[ee_t_sep]='0';
     ee_settings[ee_msg_speed]=5;
     ee_settings[ee_msg_len]=4;
-    ee_settings[ee_sys_calibrationtoken]=0xFF;//reset calibration validness
+//    ee_settings[ee_sys_calibrationtoken]=0xFF;//reset calibration validness
     ee_settings[ee_darknightmode_lowlimit]=1;
     ee_settings[ee_darknightmode_highlimit]=2;
     ee_settings[ee_darknightmode]='1';
@@ -1250,7 +1251,7 @@ static void PCF85063_settime(void)
 
 static void convert_time_to_24hr(void)
 {
-    display_img(test1_img,0,BRO0);
+    display_img(test1_img,false,BRO0);
     uint8_t hours  = (((rtctime[rtctime_hour]&mask_12hr_t)>>4)*10)+rtctime[rtctime_hour]&mask_12hr_u;
 
     if((rtctime[rtctime_hour]&mask_ampm)&&(hours==12))
@@ -1374,9 +1375,9 @@ static void display_ddl_ended_anim(void)
   uint8_t i;
   for(i=0; i<4; i++)
   {
-    display_img(countdown_timer_img, 0, BRO0);
-    display_img(countdown_timer_img, 0, BRO1);
-    display_img(countdown_timer_img, 0, BRO2);
+    display_img(countdown_timer_img, false, BRO0);
+    display_img(countdown_timer_img, false, BRO1);
+    display_img(countdown_timer_img, false, BRO2);
     nrf_delay_ms(600);
 
                     disp_clear_buffer(BRO0);
@@ -1905,7 +1906,7 @@ void command_responder(uint8_t * bt_received_string_data)
             switch(bt_received_string_data[1])
             {
             case 'a'://@FSR3HA
-                display_symbol(bt_received_string_data[3],0,BRO0);
+                display_symbol(bt_received_string_data[3],false,BRO0);
                 break;
             case 'b'://@U3KIEK
                 if(bt_received_string_data[3]=='0')
@@ -1931,143 +1932,143 @@ void command_responder(uint8_t * bt_received_string_data)
                 else if(bt_received_string_data[3]=='2')
                 {
                     // all
-                    display_symbol('0',0,BRO0);
+                    display_symbol('0', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('1',0,BRO0);
+                    display_symbol('1', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('2',0,BRO0);
+                    display_symbol('2', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('3',0,BRO0);
+                    display_symbol('3', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('4',0,BRO0);
+                    display_symbol('4', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('5',0,BRO0);
+                    display_symbol('5', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('6',0,BRO0);
+                    display_symbol('6', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('7',0,BRO0);
+                    display_symbol('7', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('8',0,BRO0);
+                    display_symbol('8', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('9',0,BRO0);
+                    display_symbol('9', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('A',0,BRO0);
+                    display_symbol('A', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('B',0,BRO0);
+                    display_symbol('B', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('C',0,BRO0);
+                    display_symbol('C', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('D',0,BRO0);
+                    display_symbol('D', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('E',0,BRO0);
+                    display_symbol('E', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('F',0,BRO0);
+                    display_symbol('F', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('G',0,BRO0);
+                    display_symbol('G', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('H',0,BRO0);
+                    display_symbol('H', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('I',0,BRO0);
+                    display_symbol('I', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('J',0,BRO0);
+                    display_symbol('J', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('K',0,BRO0);
+                    display_symbol('K', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('L',0,BRO0);
+                    display_symbol('L', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('M',0,BRO0);
+                    display_symbol('M', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('N',0,BRO0);
+                    display_symbol('N', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('O',0,BRO0);
+                    display_symbol('O', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('P',0,BRO0);
+                    display_symbol('P', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('Q',0,BRO0);
+                    display_symbol('Q', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('R',0,BRO0);
+                    display_symbol('R', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('S',0,BRO0);
+                    display_symbol('S', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('T',0,BRO0);
+                    display_symbol('T', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('U',0,BRO0);
+                    display_symbol('U', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('V',0,BRO0);
+                    display_symbol('V', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('W',0,BRO0);
+                    display_symbol('W', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('X',0,BRO0);
+                    display_symbol('X', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('Y',0,BRO0);
+                    display_symbol('Y', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('Z',0,BRO0);
+                    display_symbol('Z', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('!',0,BRO0);
+                    display_symbol('!', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('"',0,BRO0);
+                    display_symbol('"', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('#',0,BRO0);
+                    display_symbol('#', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('$',0,BRO0);
+                    display_symbol('$', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('%',0,BRO0);
+                    display_symbol('%', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('&',0,BRO0);
+                    display_symbol('&', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('(',0,BRO0);
+                    display_symbol('(', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol(')',0,BRO0);
+                    display_symbol(')', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('*',0,BRO0);
+                    display_symbol('*', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('+',0,BRO0);
+                    display_symbol('+', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol(',',0,BRO0);
+                    display_symbol(',', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('-',0,BRO0);
+                    display_symbol('-', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('.',0,BRO0);
+                    display_symbol('.', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('/',0,BRO0);
+                    display_symbol('/', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol(':',0,BRO0);
+                    display_symbol(':', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol(';',0,BRO0);
+                    display_symbol(';', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('<',0,BRO0);
+                    display_symbol('<', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('=',0,BRO0);
+                    display_symbol('=', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('>',0,BRO0);
+                    display_symbol('>', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('?',0,BRO0);
+                    display_symbol('?', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('@',0,BRO0);
+                    display_symbol('@', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('[',0,BRO0);
+                    display_symbol('[', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol(']',0,BRO0);
+                    display_symbol(']', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('^',0,BRO0);
+                    display_symbol('^', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('_',0,BRO0);
+                    display_symbol('_', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('~',0,BRO0);
+                    display_symbol('~', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('{',0,BRO0);
+                    display_symbol('{', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('|',0,BRO0);
+                    display_symbol('|', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol('}',0,BRO0);
+                    display_symbol('}', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol(0x5C,0,BRO0);
+                    display_symbol(0x5C, false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol(0x27,0,BRO0);
+                    display_symbol(0x27, false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol(' ',0,BRO0);
+                    display_symbol(' ', false, BRO0);
                     nrf_delay_ms(400);
-                    display_symbol(0xFF,0,BRO0);
+                    display_symbol(0xFF, false, BRO0);
                     nrf_delay_ms(400);
                 }
                 else
@@ -2101,7 +2102,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 parameter_number_handler(bt_received_string_data,20,0,3);
                 if(number_handler_status !=NaN)
                 {
-                    display_pixel(parameter_number_handler(bt_received_string_data,20,0,3),parameter_number_handler(bt_received_string_data,6,0,6),1,parameter_number_handler(bt_received_string_data,2,0,9));
+                    display_pixel(parameter_number_handler(bt_received_string_data,20,0,3),parameter_number_handler(bt_received_string_data,6,0,6),true,parameter_number_handler(bt_received_string_data,2,0,9));
                     command_reply_ok();
                 }
                 break;
@@ -2109,7 +2110,7 @@ void command_responder(uint8_t * bt_received_string_data)
                 parameter_number_handler(bt_received_string_data,20,0,3);
                 if(number_handler_status !=NaN)
                 {
-                    display_pixel(parameter_number_handler(bt_received_string_data,20,0,3),parameter_number_handler(bt_received_string_data,6,0,6),0,parameter_number_handler(bt_received_string_data,2,0,9));
+                    display_pixel(parameter_number_handler(bt_received_string_data,20,0,3),parameter_number_handler(bt_received_string_data,6,0,6),false,parameter_number_handler(bt_received_string_data,2,0,9));
                     command_reply_ok();
                 }
                 break;
@@ -2745,7 +2746,6 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
         switch(ee_settings[ee_ddl_status])
         {
         case STARTED:
-
            for(i=0; i<4; i++)
            {
               timetotal_secs = DatDif(
@@ -2799,11 +2799,10 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
 
            }
         case ENDED:
-
             display_ddl_ended_anim();
             break;
         default:
-            display_symbol('?', 0,BRO0);
+            display_img(three_dots_img, false, BRO0);
             ble_nus_string_send(&m_nus,"DDL NOT STARTED\n",16);
             nrf_delay_ms(howlong_ms);
             break;
@@ -2818,6 +2817,35 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
     
 }
 
+//@BKWMI0
+static void show_date(uint16_t howlong_ms)
+{
+    PCF85063_gettime();
+    if(time_correct)
+    {
+      if(brocount==3)
+        {
+                ///d/
+        }
+      else if(brocount==2)
+        {
+                ///d/
+        }
+      else if(brocount==1)
+        {
+            display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,1,BRO0);
+        }
+
+    }
+    else
+    {
+        ///time incorrect?
+        display_img(bad_clock_img, false, BRO0);
+        
+    }
+
+    nrf_delay_ms(howlong_ms);
+}
 
 static void show_timedots(uint16_t howlong_ms)
 {
@@ -2919,11 +2947,11 @@ static void show_timeclock(uint16_t howlong_ms)
                     display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO1);
                     if(rtctime[rtctime_hour]&mask_ampm)///check if the register is correct here
                     {
-                        display_img(pm_img,0,BRO2);
+                        display_img(pm_img,false,BRO2);
                     }
                     else
                     {
-                        display_img(am_img,0,BRO2);
+                        display_img(am_img,false,BRO2);
                     }
                     nrf_delay_ms(howlong_ms/5);
                 }
@@ -2959,7 +2987,7 @@ static void show_timeclock(uint16_t howlong_ms)
                 PCF85063_gettime();
                 display_double_digits_bcd((rtctime[rtctime_hour]&mask_24hr_t)>>4,rtctime[rtctime_hour]&mask_24hr_u,0,BRO0);
                 nrf_delay_ms((howlong_ms*2)/5);
-                display_symbol(stngs_t_sep[ee_settings[ee_t_sep]-'0'],0,BRO0);
+                display_symbol(stngs_t_sep[ee_settings[ee_t_sep]-'0'],false,BRO0);
                 nrf_delay_ms((howlong_ms)/5);
                 display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
                 nrf_delay_ms((howlong_ms*2)/5);
@@ -2968,17 +2996,17 @@ static void show_timeclock(uint16_t howlong_ms)
             {
                 display_double_digits_bcd((rtctime[rtctime_hour]&mask_12hr_t)>>4,rtctime[rtctime_hour]&mask_12hr_u,0,BRO0);
                 nrf_delay_ms((howlong_ms/3));
-                display_symbol(stngs_t_sep[ee_settings[ee_t_sep]-'0'],0,BRO0);
+                display_symbol(stngs_t_sep[ee_settings[ee_t_sep]-'0'],false,BRO0);
                 nrf_delay_ms((howlong_ms/6));
                 display_double_digits_bcd((rtctime[rtctime_min]&mask_60_t)>>4, rtctime[rtctime_min]&mask_60_u,0,BRO0);
                 nrf_delay_ms((howlong_ms/3));
                 if(rtctime[rtctime_hour]&mask_ampm)///check if the register is correct here
                 {
-                    display_img(pm_img,0,BRO0);
+                    display_img(pm_img,false,BRO0);
                 }
                 else
                 {
-                    display_img(am_img,0,BRO0);
+                    display_img(am_img,false,BRO0);
                 }
                 nrf_delay_ms((howlong_ms/6));
             }
