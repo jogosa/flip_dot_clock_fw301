@@ -1404,11 +1404,32 @@ static void DEADLINEDOTS_start(void)
     store_ee_settings_partial(ee_ddl_status, STARTED);
 }
 
+static void DEADLINEDOTS_reset(void)
+{
+                  uint8_t d;
+                    store_ee_settings_partial(ee_ddl_status, RESET);
+
+                    for(d=0; d<6; d++)//find which of the slots had deadlinedots programmed
+                    {
+                      if(ee_settings[ee_show1+d]==DEADLINEDOTS)
+                      {
+                        store_ee_settings_partial(ee_show1+d, NOTHING);
+                      }
+                    }
+}
+
 static void display_ddl_ended_anim(void)
 { 
   uint8_t i;
   for(i=0; i<4; i++)
   {
+    ///d/ needs better implementation of button
+    if(!nrf_gpio_pin_read(BUTTON_0)||!nrf_gpio_pin_read(BUTTON_1))
+    {
+      DEADLINEDOTS_reset();
+    }
+    
+    
     display_img(deadline_timer_img, false, BRO0);
     display_img(deadline_timer_img, false, BRO1);
     display_img(deadline_timer_img, false, BRO2);
@@ -1551,19 +1572,7 @@ static uint8_t ascii_to_hex_handler(uint8_t chara,uint8_t charb)
 }
 
 
-static void DEADLINEDOTS_reset(void)
-{
-                  uint8_t d;
-                    store_ee_settings_partial(ee_ddl_status, RESET);
 
-                    for(d=0; d<6; d++)//find which of the slots had deadlinedots programmed
-                    {
-                      if(ee_settings[ee_show1+d]==DEADLINEDOTS)
-                      {
-                        store_ee_settings_partial(ee_show1+d, NOTHING);
-                      }
-                    }
-}
 
 
 static void command_responder(uint8_t * bt_received_string_data)
@@ -1627,6 +1636,7 @@ static void command_responder(uint8_t * bt_received_string_data)
                 else if(bt_received_string_data[3]=='7')
                 {
                     DEADLINEDOTS_reset();
+                    command_reply_ok();
                 }
                 else
                 {
@@ -2934,10 +2944,7 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
            break;
         case ENDED:
             ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
-            if(!nrf_gpio_pin_read(BUTTON_0))
-            {
-              DEADLINEDOTS_reset();
-            }
+
             display_ddl_ended_anim();
             break;
         default:
