@@ -1425,11 +1425,7 @@ static void display_ddl_ended_anim(void)
   uint8_t i;
   for(i=0; i<4; i++)
   {
-    ///d/ needs better implementation of button
-    if(!nrf_gpio_pin_read(BUTTON_0)||!nrf_gpio_pin_read(BUTTON_1))
-    {
-      DEADLINEDOTS_reset();
-    }
+
     
     
     display_img(deadline_timer_img, false, BRO0);
@@ -1440,7 +1436,15 @@ static void display_ddl_ended_anim(void)
     disp_clear_buffer(BRO0);
     disp_clear_buffer(BRO1);
     disp_clear_buffer(BRO2);
-    disp_refresh();
+    disp_refresh();    
+    
+    ///d/ needs better implementation of button
+    if(!nrf_gpio_pin_read(BUTTON_0)||!nrf_gpio_pin_read(BUTTON_1))
+    {
+      DEADLINEDOTS_reset();
+      break;
+    }
+    
     nrf_delay_ms(DISP_NOTIFY_MS);
   }
 }
