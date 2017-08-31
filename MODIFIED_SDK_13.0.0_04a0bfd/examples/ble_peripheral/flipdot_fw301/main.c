@@ -1940,12 +1940,7 @@ static void command_responder(uint8_t * bt_received_string_data)
                         if(bt_received_string_data[3]==DEADLINEDOTS)
                         {
                             DEADLINEDOTS_start();
-
                         }
-
-
-
-
                     }
                 }
                 else
@@ -1962,6 +1957,11 @@ static void command_responder(uint8_t * bt_received_string_data)
                     {
                         store_ee_settings_partial(ee_show2_time,parameter_number_handler(bt_received_string_data,99,1,5));
                         command_reply_ok();
+                        
+                        if(bt_received_string_data[3]==DEADLINEDOTS)
+                        {
+                            DEADLINEDOTS_start();
+                        }
                     }
                 }
                 else
@@ -1978,6 +1978,11 @@ static void command_responder(uint8_t * bt_received_string_data)
                     {
                         store_ee_settings_partial(ee_show3_time,parameter_number_handler(bt_received_string_data,99,1,5));
                         command_reply_ok();
+                        
+                        if(bt_received_string_data[3]==DEADLINEDOTS)
+                        {
+                            DEADLINEDOTS_start();
+                        }
                     }
                 }
                 else
@@ -1994,6 +1999,11 @@ static void command_responder(uint8_t * bt_received_string_data)
                     {
                         store_ee_settings_partial(ee_show4_time,parameter_number_handler(bt_received_string_data,99,1,5));
                         command_reply_ok();
+                        
+                        if(bt_received_string_data[3]==DEADLINEDOTS)
+                        {
+                            DEADLINEDOTS_start();
+                        }
                     }
                 }
                 else
@@ -2010,6 +2020,11 @@ static void command_responder(uint8_t * bt_received_string_data)
                     {
                         store_ee_settings_partial(ee_show5_time,parameter_number_handler(bt_received_string_data,99,1,5));
                         command_reply_ok();
+                        
+                        if(bt_received_string_data[3]==DEADLINEDOTS)
+                        {
+                            DEADLINEDOTS_start();
+                        }
                     }
                 }
                 else
@@ -2026,6 +2041,11 @@ static void command_responder(uint8_t * bt_received_string_data)
                     {
                         store_ee_settings_partial(ee_show6_time,parameter_number_handler(bt_received_string_data,99,1,5));
                         command_reply_ok();
+                        
+                        if(bt_received_string_data[3]==DEADLINEDOTS)
+                        {
+                            DEADLINEDOTS_start();
+                        }
                     }
                 }
                 else
