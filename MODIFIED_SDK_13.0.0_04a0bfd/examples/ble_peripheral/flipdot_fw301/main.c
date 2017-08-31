@@ -1402,6 +1402,7 @@ static void DEADLINEDOTS_start(void)
     store_ee_settings();
 
     store_ee_settings_partial(ee_ddl_status, STARTED);
+    ble_nus_string_send(&m_nus,"DDL STARTED\n",12);
 }
 
 static void DEADLINEDOTS_reset(void)
@@ -1416,6 +1417,7 @@ static void DEADLINEDOTS_reset(void)
                         store_ee_settings_partial(ee_show1+d, NOTHING);
                       }
                     }
+                    ble_nus_string_send(&m_nus,"DDL RESET\n",10);
 }
 
 static void display_ddl_ended_anim(void)
@@ -1934,6 +1936,16 @@ static void command_responder(uint8_t * bt_received_string_data)
                     {
                         store_ee_settings_partial(ee_show1_time,parameter_number_handler(bt_received_string_data,99,1,5));
                         command_reply_ok();
+
+                        if(bt_received_string_data[3]==DEADLINEDOTS)
+                        {
+                            DEADLINEDOTS_start();
+
+                        }
+
+
+
+
                     }
                 }
                 else
