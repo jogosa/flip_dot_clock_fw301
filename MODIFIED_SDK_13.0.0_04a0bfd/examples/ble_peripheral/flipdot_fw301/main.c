@@ -206,6 +206,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define HRS_24    				'1'
 #define HRS_12    				'0'
 
+#define RESET '0'
 #define STARTED '1'
 #define ENDED '2'
 
@@ -388,7 +389,7 @@ uint8_t display_buffer[21] =
 
 bool countdown_timer_running=false,countdown_timer_setup_mode=false,draw_mode=false, time_correct=false, dark_mode_check=false;
 uint8_t countm=0, current_bro=BRO0, brocount=1;
-uint16_t refresh_speed_scroll,refresh_speed_time,refresh_speed_time_sep,stepj=0, countdown_timer=0,times_ups=0;
+uint16_t refresh_speed_scroll, countdown_timer=0,times_ups=0;
 uint32_t number_handler_status=0;
 
 uint8_t ee_settings[250]="";
@@ -831,7 +832,7 @@ static void write_default_ee_settings(void)
     ee_settings[ee_darknightmode_highlimit]=2;
     ee_settings[ee_darknightmode]='1';
 //    ee_settings[ee_cal]=0;
-    ee_settings[ee_ddl_status]='0';
+    ee_settings[ee_ddl_status]=RESET;
     //  ee_settings[ee_ddl_yr]='';
     //  ee_settings[ee_ddl_mon]='';
     //  ee_settings[ee_ddl_day]='';
@@ -1549,6 +1550,22 @@ static uint8_t ascii_to_hex_handler(uint8_t chara,uint8_t charb)
 
 }
 
+
+static void DEADLINEDOTS_reset(void)
+{
+                  uint8_t d;
+                    store_ee_settings_partial(ee_ddl_status, RESET);
+
+                    for(d=0; d<6; d++)//find which of the slots had deadlinedots programmed
+                    {
+                      if(ee_settings[ee_show1+d]==DEADLINEDOTS)
+                      {
+                        store_ee_settings_partial(ee_show1+d, NOTHING);
+                      }
+                    }
+}
+
+
 static void command_responder(uint8_t * bt_received_string_data)
 {
     if(bt_received_string_data[2]==',')
@@ -1606,6 +1623,10 @@ static void command_responder(uint8_t * bt_received_string_data)
                 {
                     calibration_exit();
                     command_reply_ok();
+                }
+                else if(bt_received_string_data[3]=='7')
+                {
+                    DEADLINEDOTS_reset();
                 }
                 else
                 {
@@ -2913,6 +2934,10 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
            break;
         case ENDED:
             ble_nus_string_send(&m_nus,"DDL ENDED\n",10);
+            if(!nrf_gpio_pin_read(BUTTON_0))
+            {
+              DEADLINEDOTS_reset();
+            }
             display_ddl_ended_anim();
             break;
         default:
@@ -3874,7 +3899,7 @@ static void advertising_init(void)
     advdata.name_type          = BLE_ADVDATA_FULL_NAME;
     advdata.include_appearance = false;
     advdata.flags                   = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;///// infinite time advertisinng
-////    advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE;/////d/
+////    advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE;/////
 
     memset(&scanrsp, 0, sizeof(scanrsp));
     scanrsp.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
