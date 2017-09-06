@@ -206,9 +206,9 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define COUNTDOWNT      'W'
 
 
-#define NORMALMODE  1
-#define COUNTDOWNTIMERMODE  2
-#define DRAWMODE    3
+#define NORMALMODE  '1'
+#define COUNTDOWNTIMERMODE  '2'
+#define DRAWMODE    '3'
 
 #define HRS_24    				'1'
 #define HRS_12    				'0'
@@ -811,9 +811,6 @@ void seconds_int_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
     nrf_drv_gpiote_in_event_enable(SEC_INT_CALIB_OUT, false);
   }
 }
-
-
-
 
 
 void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -2501,6 +2498,7 @@ static void command_responder(uint8_t * bt_received_string_data)
             case 'c'://@ONMESS
                 if(bt_received_string_data[3]=='0')
                 {
+                    countdowntimer_status=RESET;
                     operation_mode=NORMALMODE;///E/UPDATE DOCUMENTATION ON THIS
                     command_reply_ok();
                     // exit
@@ -2579,48 +2577,43 @@ static void command_responder(uint8_t * bt_received_string_data)
 
                 check_darknightmode();
                      
-                uint8_t reply_string[37]="pq,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*\n";
+                uint8_t reply_string[28]="pq,************************\n";
                 reply_string[3]=CURRENT_SKU;
-                reply_string[5]=CURRENT_VERSION_TOKEN;//VERSION
-                reply_string[7]=current_bro+'0';//BRONUMBER
-                reply_string[9]=brocount+'0';//BROTOTAL                                            
-                reply_string[11]=dark_mode_check+'0';// should read true when dark 
-                reply_string[13]=bsp_board_led_state_get(0)+'0';//BLUE LED   should read false always
-                reply_string[15]=bsp_board_led_state_get(1)+'0';//GREEN LED                   
-                reply_string[17]=bsp_board_led_state_get(2)+'0';//RED LED        
-                reply_string[19]=nrf_gpio_pin_read(SEC_INT_CALIB_OUT)+'0';//clock pin    
-                reply_string[21]=check_ee_token()+'0';// should read false
-                reply_string[23]=PCF85063_check_ID()+'0';// should read false
-                reply_string[25]=OPT3001_check_ID()+'0';// should read false 
+                reply_string[4]=CURRENT_VERSION_TOKEN;//VERSION
+                reply_string[5]=current_bro+'0';//BRONUMBER
+                reply_string[6]=brocount+'0';//BROTOTAL                                            
+                reply_string[7]=display_status;//
+                reply_string[8]=showslot_status+'0';//
+                reply_string[9]=operation_mode;
+                reply_string[10]=countdowntimer_status;
+                reply_string[11]=ee_settings[ee_ddl_status];
+                reply_string[12]=check_ee_token()+'0';// should read false
+                reply_string[13]=PCF85063_check_ID()+'0';// should read false
+                reply_string[14]=OPT3001_check_ID()+'0';// should read false 
                 if(ee_settings[ee_sys_broenabled]=='0')
                 {
-                    reply_string[27]='X';// should read false
+                    reply_string[15]='X';// should read false
                 }
                 else
                 {
-                    reply_string[27]=AA812_check_ID(AA812_LEFT)+'0';// should read false
+                    reply_string[15]=AA812_check_ID(AA812_LEFT)+'0';// should read false
                 }
                 if(ee_settings[ee_sys_broenabled]=='0')
                 {
-                    reply_string[29]='X';// should read false
+                    reply_string[16]='X';// should read false
                 }
                 else
                 {
-                    reply_string[29]=AA812_check_ID(AA812_RIGHT)+'0';// should read false
+                    reply_string[16]=AA812_check_ID(AA812_RIGHT)+'0';// should read false
                 }
-                reply_string[31]=time_correct+'0';// should read true if time correct
-                reply_string[33]=!nrf_gpio_pin_read(BUTTON_RIGHT)+'0';// reads true if button0 pressed
-                reply_string[35]=!nrf_gpio_pin_read(BUTTON_LEFT)+'0';// reads true if button1 pressed
-
-
-
-
-                ///e/display_status=0,showslot_status=0,operation_mode=0
-
-
-
-
-
+                reply_string[17]=time_correct+'0';// should read true if time correct
+                reply_string[18]=!nrf_gpio_pin_read(BUTTON_RIGHT)+'0';// reads true if button0 pressed
+                reply_string[19]=!nrf_gpio_pin_read(BUTTON_LEFT)+'0';// reads true if button1 pressed
+                reply_string[20]=nrf_gpio_pin_read(SEC_INT_CALIB_OUT)+'0';//clock pin  
+                reply_string[21]=dark_mode_check+'0';// should read true when dark 
+                reply_string[22]=bsp_board_led_state_get(0)+'0';//BLUE LED   should read false always
+                reply_string[23]=bsp_board_led_state_get(1)+'0';//GREEN LED                   
+                reply_string[24]=bsp_board_led_state_get(2)+'0';//RED LED    
 
 
                 ble_nus_string_send(&m_nus,reply_string,sizeof(reply_string));
