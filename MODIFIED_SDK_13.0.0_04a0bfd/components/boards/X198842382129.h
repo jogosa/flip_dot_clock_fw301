@@ -57,8 +57,8 @@ extern "C" {
 
 //#define BUTTONS_NUMBER 2
 
-#define BUTTON_RIGHT       28 //button label: "CLEAR"
-#define BUTTON_LEFT       11 //button label: "TIMER PLUS"
+#define BUTTON_LEFT       28 //button label: "CLEAR"
+#define BUTTON_RIGHT       11 //button label: "TIMER PLUS"
 //#define BUTTON_PULL    NRF_GPIO_PIN_PULLUP
 
 //#define BUTTONS_ACTIVE_STATE 0

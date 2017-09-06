@@ -704,9 +704,19 @@ void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
                  //do nothing
             }
         }
-        else
+        else /// WHAT HAPPENS NORMALLY
         {
             ///e/ countdown timer ops
+            if(pin==BUTTON_RIGHT)
+            {
+                ///e/
+            }
+            else if(pin==BUTTON_LEFT)
+            {
+                ///e/
+                 
+            }
+
         }
     }
     else
