@@ -116,7 +116,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define BRO_ENABLED                     '0' // '0' for devices that come without tranceivers //DEPENDENT ON DIFFERENT HEX FILES FOR DIFFERENT BRO OPTIONS
 
 
-#define DISP_NOTIFY_MS 600
+#define DISP_NOTIFY_MS 700
 #define DISP_REFRESH_MS 100
 
 
@@ -467,7 +467,8 @@ uint8_t rtctimehex[7] ="";
 
 const uint8_t usb_img[7] = {0x7F, 0x7F, 0x7F, 0x14, 0x7F, 0x7F, 0x7F};
 const uint8_t test1_img[7] = {0x55, 0x2A, 0x55, 0x2A, 0x55, 0x2A, 0x55};
-const uint8_t bad_clock_img[7] = {0x3e, 0x49, 0x49, 0x4d, 0x41, 0x41, 0x3e};
+const uint8_t clock_img[7] = {0x3e, 0x49, 0x49, 0x4d, 0x41, 0x41, 0x3e};
+const uint8_t error_img[7] = {0x00, 0x66, 0x11, 0x22, 0x22, 0x00, 0x22};
 const uint8_t am_img[7] = {0x07, 0x05, 0x05, 0x07, 0x05, 0x05, 0x05};
 const uint8_t pm_img[7] = {0x07, 0x05, 0x05, 0x07, 0x04, 0x04, 0x04};
 const uint8_t three_dots_img[7] = {0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00};
@@ -627,19 +628,47 @@ static void display_img(const uint8_t *image, uint8_t invert, uint8_t bro)
     {
         disp_invert_buffer(bro);
     }
+    
+}
+
+static void disp_clear_buffer(uint8_t bro)
+{
+    uint8_t i;
+    for (i=0; i<7; i++)
+    {
+        display_buffer[i+bro_disp_buf_addr[bro]]=0x00;
+    }
+};
+
+
+static void display_badclock_anim(void)
+{ 
+  /*
+    display_img(clock_img, false, BRO0);
+    display_img(clock_img, false, BRO1);
+    display_img(clock_img, false, BRO2);
     disp_refresh();
+    nrf_delay_ms(DISP_NOTIFY_MS);
+  */
+    display_img(error_img, false, BRO0);
+    display_img(error_img, false, BRO1);
+    display_img(error_img, false, BRO2);  
+    disp_refresh();
+    nrf_delay_ms(DISP_NOTIFY_MS);
+
 }
 
 static void display_ddl_reset_anim(void)
-{ 
+{ /*
     display_img(deadline_timer_img, false, BRO0);
     display_img(deadline_timer_img, false, BRO1);
     display_img(deadline_timer_img, false, BRO2);
-    nrf_delay_ms(DISP_NOTIFY_MS);
+    disp_refresh();
+    nrf_delay_ms(DISP_NOTIFY_MS);*/
     display_img(reset_img, false, BRO0);
     display_img(reset_img, false, BRO1);
-    display_img(reset_img, false, BRO2);   
-    nrf_delay_ms(DISP_NOTIFY_MS);
+    display_img(reset_img, false, BRO2);  
+    disp_refresh();
     nrf_delay_ms(DISP_NOTIFY_MS);
 }
 
@@ -657,7 +686,9 @@ static void DEADLINEDOTS_reset(void)
                       }
                     }
                     ble_nus_string_send(&m_nus,"DDL RESET\n",10);
+                    
                     display_ddl_reset_anim();
+                    
 }
 
 static void buttons_int_enable(void)
@@ -670,6 +701,30 @@ static void buttons_int_disable(void)
 {
     nrf_drv_gpiote_in_event_enable(BUTTON_RIGHT, false);
     nrf_drv_gpiote_in_event_enable(BUTTON_LEFT, false);
+}
+
+
+static void display_ddl_ended_anim(void)
+{ 
+  uint8_t i;
+  for(i=0; i<4; i++)
+  {
+    if(ee_settings[ee_ddl_status]==ENDED)
+    {
+        display_img(deadline_timer_img, false, BRO0);
+        display_img(deadline_timer_img, false, BRO1);
+        display_img(deadline_timer_img, false, BRO2);
+        disp_refresh();
+        nrf_delay_ms(DISP_NOTIFY_MS);
+
+        disp_clear_buffer(BRO0);
+        disp_clear_buffer(BRO1);
+        disp_clear_buffer(BRO2);
+        disp_refresh();    
+        
+        nrf_delay_ms(DISP_NOTIFY_MS);
+    }
+  }
 }
 
 void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -713,8 +768,7 @@ void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
             }
             else if(pin==BUTTON_LEFT)
             {
-                ///e/
-                 
+                ///e/       
             }
 
         }
@@ -803,14 +857,6 @@ static void calibration_enter(void)
 
 
 
-static void disp_clear_buffer(uint8_t bro)
-{
-    uint8_t i;
-    for (i=0; i<7; i++)
-    {
-        display_buffer[i+bro_disp_buf_addr[bro]]=0x00;
-    }
-};
 
 
 static void OPT3001_init(void)
@@ -1425,6 +1471,7 @@ static void PCF85063_settime(void)
 static void convert_time_to_24hr(void)
 {
     display_img(test1_img,false,BRO0);
+    disp_refresh();
     uint8_t hours  = (((rtctime[rtctime_hour]&mask_12hr_t)>>4)*10)+(rtctime[rtctime_hour]&mask_12hr_u);
 
     if((rtctime[rtctime_hour]&mask_ampm)&&(hours==12))
@@ -1453,6 +1500,7 @@ static void convert_time_to_24hr(void)
 static void convert_time_to_12hr(void)
 {
     display_img(test1_img,1,BRO0);
+    disp_refresh();
     uint8_t hours = (((rtctime[rtctime_hour]&mask_24hr_t)>>4)*10)+(rtctime[rtctime_hour]&mask_24hr_u);
 
     if(hours==12)
@@ -1546,27 +1594,7 @@ static void DEADLINEDOTS_start(void)
 
 
 
-static void display_ddl_ended_anim(void)
-{ 
-  uint8_t i;
-  for(i=0; i<4; i++)
-  {
-    if(ee_settings[ee_ddl_status]==ENDED)
-    {
-        display_img(deadline_timer_img, false, BRO0);
-        display_img(deadline_timer_img, false, BRO1);
-        display_img(deadline_timer_img, false, BRO2);
-        nrf_delay_ms(DISP_NOTIFY_MS);
 
-        disp_clear_buffer(BRO0);
-        disp_clear_buffer(BRO1);
-        disp_clear_buffer(BRO2);
-        disp_refresh();    
-        
-        nrf_delay_ms(DISP_NOTIFY_MS);
-    }
-  }
-}
 
 /*
 static void display_countdown_timer_ended_anim(void)
@@ -1577,6 +1605,7 @@ static void display_countdown_timer_ended_anim(void)
     display_img(countdown_timer_img, true, BRO0);
     display_img(countdown_timer_img, true, BRO1);
     display_img(countdown_timer_img, true, BRO2);
+    disp_refresh();
     nrf_delay_ms(DISP_NOTIFY_MS);
 
     disp_clear_buffer(BRO0);
@@ -2433,7 +2462,7 @@ static void command_responder(uint8_t * bt_received_string_data)
 
 
                 nrf_gpio_pin_write(LED_BLUE,!false);//disable blue led for ambient light sensor test
-                nrf_delay_ms(100);
+                nrf_delay_ms(50);
 
                 check_darknightmode();
                      
@@ -3126,6 +3155,7 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
             break;
         default:
             display_img(three_dots_img, false, BRO0);
+            disp_refresh();
             ble_nus_string_send(&m_nus,"DDL NOT STARTED\n",16);
             nrf_delay_ms(DISP_NOTIFY_MS);
             break;
@@ -3134,8 +3164,7 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
     else
     {
       ///time incorrect?
-      display_img(bad_clock_img, false, BRO0);
-      nrf_delay_ms(DISP_NOTIFY_MS);
+      display_badclock_anim();
     }
 
     display_status=0;
@@ -3154,6 +3183,7 @@ static void show_date(uint16_t howlong_ms)
     if(time_correct)
     {
         display_img(calendar_img, false, BRO0);
+        disp_refresh();
         nrf_delay_ms(DISP_NOTIFY_MS);
 
               if(brocount==3)
@@ -3188,8 +3218,8 @@ static void show_date(uint16_t howlong_ms)
     else
     {
         ///time incorrect?
-        display_img(bad_clock_img, false, BRO0);   
-        nrf_delay_ms(DISP_NOTIFY_MS);
+
+        display_badclock_anim();
     }
     display_status=0;
 }
@@ -3222,14 +3252,14 @@ static void show_countdown_timer(uint16_t howlong_ms)
                 {
                     display_double_digits_bcd(x,y,true,BRO0);
                 }
+            disp_refresh();
             nrf_delay_ms(DISP_REFRESH_MS);  
         } 
     }
     else
     {
         ///time incorrect?
-        display_img(bad_clock_img, false, BRO0); 
-        nrf_delay_ms(DISP_NOTIFY_MS);     
+        display_badclock_anim();   
     }
 }
 */
@@ -3245,7 +3275,7 @@ static void show_timedots(uint16_t howlong_ms)
     else
     {
         ///time incorrect?
-        display_img(bad_clock_img, false, BRO0);
+        display_badclock_anim();
         
     }
 
@@ -3345,6 +3375,7 @@ static void show_timeclock(uint16_t howlong_ms)
                     {
                         display_img(am_img,false,BRO2);
                     }
+                    disp_refresh();
                     nrf_delay_ms(DISP_REFRESH_MS);  
                 }
             }
@@ -3400,6 +3431,7 @@ static void show_timeclock(uint16_t howlong_ms)
                 {
                     display_img(am_img,false,BRO0);
                 }
+                disp_refresh();
                 nrf_delay_ms((howlong_ms/6));
             }
 
@@ -3415,8 +3447,7 @@ static void show_timeclock(uint16_t howlong_ms)
     else
     {
             ///time incorrect?
-        display_img(bad_clock_img, false, BRO0);
-        nrf_delay_ms(DISP_NOTIFY_MS); 
+        display_badclock_anim();
     }
     display_status=0;
 }
@@ -3445,8 +3476,7 @@ static void show_minutes_only(uint16_t howlong_ms)
     else
     {
             ///time incorrect?
-        display_img(bad_clock_img, false, BRO0);
-        nrf_delay_ms(DISP_NOTIFY_MS); 
+        display_badclock_anim();
     }
     display_status=0;
 
@@ -3481,8 +3511,7 @@ static void show_hours_only(uint16_t howlong_ms)
     else
     {
             ///time incorrect?
-        display_img(bad_clock_img, false, BRO0);
-        nrf_delay_ms(DISP_NOTIFY_MS); 
+        display_badclock_anim();
     }
     display_status=0;
 
@@ -3631,6 +3660,7 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
             display_img(sleep_img, false, BRO0);
             display_img(sleep_img, false, BRO1);
             display_img(sleep_img, false, BRO2);
+            disp_refresh();
             nrf_delay_ms(howlong_ms);
     }
 }

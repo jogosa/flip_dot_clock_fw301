@@ -605,7 +605,7 @@
 // <7=> 7 
 
 #ifndef GPIOTE_CONFIG_IRQ_PRIORITY
-#define GPIOTE_CONFIG_IRQ_PRIORITY 7
+#define GPIOTE_CONFIG_IRQ_PRIORITY 6
 #endif
 
 // <e> GPIOTE_CONFIG_LOG_ENABLED - Enables logging in the module.
@@ -2630,7 +2630,7 @@
 // <7=> 7 
 
 #ifndef TWI_DEFAULT_CONFIG_IRQ_PRIORITY
-#define TWI_DEFAULT_CONFIG_IRQ_PRIORITY 7
+#define TWI_DEFAULT_CONFIG_IRQ_PRIORITY 2
 #endif
 
 // <e> TWI0_ENABLED - Enable TWI0 instance
@@ -2795,7 +2795,7 @@
 // <7=> 7 
 
 #ifndef UART_DEFAULT_CONFIG_IRQ_PRIORITY
-#define UART_DEFAULT_CONFIG_IRQ_PRIORITY 7
+#define UART_DEFAULT_CONFIG_IRQ_PRIORITY 3
 #endif
 
 // <q> UART_EASY_DMA_SUPPORT  - Driver supporting EasyDMA
