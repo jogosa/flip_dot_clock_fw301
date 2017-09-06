@@ -394,9 +394,9 @@ uint8_t display_buffer[21] =
     0xee, 0xb4, 0x72, 0xa5, 0xbb, 0x21, 0x0d//bro3
 };
 
-bool countdown_timer_running=false,countdown_timer_setup_mode=false, time_correct=false, dark_mode_check=false;
+bool time_correct=false, dark_mode_check=false;
 uint8_t countm=0, current_bro=BRO0, brocount=1,display_status=0,operation_mode=0;
-uint16_t refresh_speed_scroll, countdown_timer=0,times_ups=0;
+uint16_t refresh_speed_scroll, countdowntimer_secs=0,times_ups=0, countdowntimer_status=RESET;
 uint32_t number_handler_status=0;
 
 uint8_t ee_settings[250]="";
@@ -475,7 +475,7 @@ const uint8_t three_dots_img[7] = {0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00};
 const uint8_t plus_img[7] = {0x00, 0x08, 0x08, 0x3e, 0x08, 0x08, 0x00};
 const uint8_t sleep_img[7] = {0x00, 0x00, 0x77, 0x00, 0x08, 0x00, 0x00};
 const uint8_t deadline_timer_img[7] = {0x3E, 0x22, 0x14, 0x08, 0x1C, 0x3E, 0x3E};
-const uint8_t countdown_timer_img[7] = {0x00, 0x3E, 0x14, 0x08, 0x14, 0x3E, 0x00};
+const uint8_t countdowntimer_img[7] = {0x00, 0x3E, 0x14, 0x08, 0x14, 0x3E, 0x00};
 const uint8_t calendar_img[7] = {0x00, 0x2A, 0x00, 0x2A, 0x00, 0x00, 0x00};
 const uint8_t reset_img[7] = {0x00, 0x22, 0x14, 0x08, 0x14, 0x22, 0x00};
 
@@ -672,6 +672,41 @@ static void display_ddl_reset_anim(void)
     nrf_delay_ms(DISP_NOTIFY_MS);
 }
 
+static void display_cdt_start_anim(void)
+{ 
+    display_img(countdowntimer_img, false, BRO0);
+    display_img(countdowntimer_img, false, BRO1);
+    display_img(countdowntimer_img, false, BRO2);
+    disp_refresh();
+    nrf_delay_ms(100);
+
+}
+
+static void display_cdt_reset_anim(void)
+{ /*
+    display_img(countdowntimer_img, false, BRO0);
+    display_img(countdowntimer_img, false, BRO1);
+    display_img(countdowntimer_img, false, BRO2);
+    disp_refresh();
+    nrf_delay_ms(DISP_NOTIFY_MS);*/
+    display_img(reset_img, false, BRO0);
+    display_img(reset_img, false, BRO1);
+    display_img(reset_img, false, BRO2);  
+    disp_refresh();
+    nrf_delay_ms(DISP_NOTIFY_MS);
+}
+/*
+static void display_cdt_added_anim(void)
+{ 
+
+    display_img(plus_img, false, BRO0);
+    display_img(plus_img, false, BRO1);
+    display_img(plus_img, false, BRO2);  
+    disp_refresh();
+    nrf_delay_ms(DISP_NOTIFY_MS);
+}
+*/
+
 static void DEADLINEDOTS_reset(void)
 {
                   uint8_t d;
@@ -727,6 +762,60 @@ static void display_ddl_ended_anim(void)
   }
 }
 
+static void COUNTDOWNTIMER_reset(void)
+{
+    countdowntimer_secs=0;
+
+    nrf_drv_gpiote_in_event_enable(SEC_INT_CALIB_OUT, false);
+    countdowntimer_status=RESET;
+    operation_mode=NORMALMODE;
+    ble_nus_string_send(&m_nus,"CDT RESET\n",10);
+    display_cdt_reset_anim();
+}
+
+static void COUNTDOWNTIMER_addtime(uint16_t secs)
+{
+    countdowntimer_secs +=secs;
+
+
+    if(countdowntimer_secs >=5940)//max 99 minutes
+    {
+        countdowntimer_secs =5940;
+    }
+
+
+    ble_nus_string_send(&m_nus,"CDT ADD T\n",10);
+ //   display_cdt_added_anim();
+}
+
+static void COUNTDOWNTIMER_start(void)
+{
+
+    nrf_drv_gpiote_in_event_enable(SEC_INT_CALIB_OUT, true);
+    countdowntimer_secs=60;
+    countdowntimer_status=STARTED;
+    operation_mode=COUNTDOWNTIMERMODE;
+    ble_nus_string_send(&m_nus,"CDT STARTED\n",12);
+    display_cdt_start_anim();
+
+}
+
+void seconds_int_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+{
+  countdowntimer_secs--;
+  
+  if(countdowntimer_secs==0)
+  {
+    countdowntimer_status=ENDED;
+
+    nrf_drv_gpiote_in_event_enable(SEC_INT_CALIB_OUT, false);
+  }
+}
+
+
+
+
+
 void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
     buttons_int_disable();
@@ -739,11 +828,11 @@ void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
     {
             if(pin==BUTTON_RIGHT)
             {
-                ///e/
+                COUNTDOWNTIMER_reset();
             }
             else if(pin==BUTTON_LEFT)
             {
-                ///e/
+                COUNTDOWNTIMER_addtime(60);
             }
     }
     else if(operation_mode==NORMALMODE)
@@ -761,14 +850,14 @@ void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
         }
         else /// WHAT HAPPENS NORMALLY
         {
-            ///e/ countdown timer ops
+            
             if(pin==BUTTON_RIGHT)
             {
-                ///e/
+                //do nothing
             }
             else if(pin==BUTTON_LEFT)
             {
-                ///e/       
+                COUNTDOWNTIMER_start();
             }
 
         }
@@ -822,19 +911,37 @@ void init_gpio(void)
         NRF_GPIO_PIN_S0S1,
         NRF_GPIO_PIN_SENSE_LOW);
 
+    nrf_gpio_cfg(
+        BUTTON_RIGHT,
+        NRF_GPIO_PIN_DIR_INPUT,
+        NRF_GPIO_PIN_INPUT_CONNECT,
+        NRF_GPIO_PIN_PULLUP,
+        NRF_GPIO_PIN_S0S1,
+        NRF_GPIO_PIN_SENSE_LOW);
 
+    nrf_gpio_cfg(
+        BUTTON_LEFT,
+        NRF_GPIO_PIN_DIR_INPUT,
+        NRF_GPIO_PIN_INPUT_CONNECT,
+        NRF_GPIO_PIN_PULLUP,
+        NRF_GPIO_PIN_S0S1,
+        NRF_GPIO_PIN_SENSE_LOW);
     
     
-    nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_TOGGLE(true);
+    
+    
+    
+    nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
     in_config.pull = NRF_GPIO_PIN_PULLUP;
     
-    
-    err_code = nrf_drv_gpiote_in_init(BUTTON_RIGHT, &in_config, in_pin_handler);
+    err_code = nrf_drv_gpiote_in_init(SEC_INT_CALIB_OUT, &in_config, seconds_int_handler);
     APP_ERROR_CHECK(err_code);
     
     err_code = nrf_drv_gpiote_in_init(BUTTON_LEFT, &in_config, in_pin_handler);
     APP_ERROR_CHECK(err_code);
     
+    err_code = nrf_drv_gpiote_in_init(BUTTON_RIGHT, &in_config, in_pin_handler);
+    APP_ERROR_CHECK(err_code);
     
     nrf_gpio_pin_write(RS_485_DIR,true);//enable tx on the RS-485
 
@@ -844,9 +951,13 @@ void init_gpio(void)
 
 
 
+
+
 static void calibration_enter(void)
 {
 
+    COUNTDOWNTIMER_reset();
+    buttons_int_disable();
     //RTC CALIB ENTRY CODE STARTS HERE
 
     const uint8_t RTC_ENTER_CALIB[2]= {RTC_CTL2,0x23}; // SECONDS OUTPUT NOW OUTPUTS 4096HZ
@@ -938,6 +1049,7 @@ static void calibration_exit(void)
     const uint8_t RTC_EXIT_CALIB[2]= {RTC_CTL2,0x26}; // minute and second outputs enabled
     i2c_tx(PCF85063TP,RTC_EXIT_CALIB,sizeof(RTC_EXIT_CALIB), false);
 
+    buttons_int_enable();
 }
 
 static bool PCF85063_check_ID(void)
@@ -1596,15 +1708,16 @@ static void DEADLINEDOTS_start(void)
 
 
 
-/*
-static void display_countdown_timer_ended_anim(void)
+
+
+static void display_cdt_ended_anim(void)
 { 
   uint8_t i;
   for(i=0; i<4; i++)
   {
-    display_img(countdown_timer_img, true, BRO0);
-    display_img(countdown_timer_img, true, BRO1);
-    display_img(countdown_timer_img, true, BRO2);
+    display_img(countdowntimer_img, false, BRO0);
+    display_img(countdowntimer_img, false, BRO1);
+    display_img(countdowntimer_img, false, BRO2);
     disp_refresh();
     nrf_delay_ms(DISP_NOTIFY_MS);
 
@@ -1614,7 +1727,7 @@ static void display_countdown_timer_ended_anim(void)
     disp_refresh();
     nrf_delay_ms(DISP_NOTIFY_MS);
   }
-}*/
+}
 
 static void check_darknightmode(void)
 {
@@ -3224,45 +3337,66 @@ static void show_date(uint16_t howlong_ms)
     display_status=0;
 }
 
-/*
+
 //@LJICQZ
 static void show_countdown_timer(uint16_t howlong_ms)
 {
-    uint16_t refreshes, i;
+    display_status=COUNTDOWNT;
+    uint16_t refreshes, i, mins;
     refreshes = howlong_ms/DISP_REFRESH_MS;
 
     PCF85063_gettime();
     if(time_correct)
     {
-        for(i=0; i<refreshes; i++)
+        switch(countdowntimer_status)
         {
+            case ENDED:
+                ble_nus_string_send(&m_nus,"CDT ENDED\n",10);
+                display_cdt_ended_anim();
+                break;
+            case STARTED:
+                for(i=0; i<refreshes; i++)
+                {
+                      mins = divRoundClosest(countdowntimer_secs,60);
+                      if(brocount==3)
+                        {
 
-              if(brocount==3)
-                {
-                    display_img(countdown_img, true, BRO0);
-                    disp_clear_buffer(BRO1);
-                    display_double_digits_bcd(x,y,true,BRO2);
-                }
-              else if(brocount==2)
-                {
-                    display_img(countdown_img, true, BRO0);
-                    display_double_digits_bcd(x,y,true,BRO1);
-                }
-              else if(brocount==1)
-                {
-                    display_double_digits_bcd(x,y,true,BRO0);
-                }
-            disp_refresh();
-            nrf_delay_ms(DISP_REFRESH_MS);  
-        } 
+                            display_img(countdowntimer_img, true, BRO0);
+                            disp_clear_buffer(BRO1);
+                            display_double_digits_bcd(((mins%100)/10),(mins%10),false,BRO2);
+                        }
+                      else if(brocount==2)
+                        {
+                            display_img(countdowntimer_img, true, BRO0);
+                            display_double_digits_bcd(((mins%100)/10),(mins%10),false,BRO1);
+                        }
+                      else if(brocount==1)
+                        {
+                            display_double_digits_bcd(((mins%100)/10),(mins%10),false,BRO0);
+                        }
+                    disp_refresh();
+                    nrf_delay_ms(DISP_REFRESH_MS);  
+                } 
+
+                break;
+            case RESET:
+                operation_mode=NORMALMODE;
+                break;
+            default:
+                display_img(three_dots_img, false, BRO0);
+                disp_refresh();
+                nrf_delay_ms(DISP_NOTIFY_MS); 
+                break;
+        }
     }
     else
     {
         ///time incorrect?
         display_badclock_anim();   
     }
+      display_status=0;
 }
-*/
+
 
 static void show_timedots(uint16_t howlong_ms)
 {
@@ -3606,8 +3740,8 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
     }
     else if (operation_mode==COUNTDOWNTIMERMODE)
     {
-        display_status=COUNTDOWNT;
-////        show_countdown_timer(DISP_REFRESH_MS);
+        
+        show_countdown_timer(200);
     }
     else if((!(dark_mode_check&&(ee_settings[ee_darknightmode]-'0'))) && (!((ee_settings[ee_timenightmode]-'0') && check_timesleepmode())))
     {
@@ -4269,8 +4403,7 @@ int main(void)
     advertising_init();
     conn_params_init();
 
-//    printf("\r\nUART Start!\r\n");
-//   NRF_LOG_INFO("UART Start!\r\n");
+
     err_code = ble_advertising_start(BLE_ADV_MODE_DIRECTED_SLOW);//was BLE_ADV_MODE_FAST
     APP_ERROR_CHECK(err_code);
 
