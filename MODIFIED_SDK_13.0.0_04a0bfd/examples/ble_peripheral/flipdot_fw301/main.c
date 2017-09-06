@@ -2583,7 +2583,7 @@ static void command_responder(uint8_t * bt_received_string_data)
                 reply_string[5]=current_bro+'0';//BRONUMBER
                 reply_string[6]=brocount+'0';//BROTOTAL                                            
                 reply_string[7]=display_status;//
-                reply_string[8]=showslot_status+'0';//
+                //reply_string[8]= ;//reserved
                 reply_string[9]=operation_mode;
                 reply_string[10]=countdowntimer_status;
                 reply_string[11]=ee_settings[ee_ddl_status];
