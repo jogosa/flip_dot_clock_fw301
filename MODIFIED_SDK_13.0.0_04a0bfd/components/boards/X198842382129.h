@@ -55,19 +55,19 @@ extern "C" {
 #define BSP_LED_1      LED_1
 #define BSP_LED_2      LED_2
 
-#define BUTTONS_NUMBER 2
+//#define BUTTONS_NUMBER 2
 
-#define BUTTON_0       28
-#define BUTTON_1       11
-#define BUTTON_PULL    NRF_GPIO_PIN_PULLUP
+#define BUTTON_RIGHT       28 //button label: "CLEAR"
+#define BUTTON_LEFT       11 //button label: "TIMER PLUS"
+//#define BUTTON_PULL    NRF_GPIO_PIN_PULLUP
 
-#define BUTTONS_ACTIVE_STATE 0
+//#define BUTTONS_ACTIVE_STATE 0
 
-#define BUTTONS_LIST { BUTTON_0, BUTTON_1 }
+//#define BUTTONS_LIST { BUTTON_0, BUTTON_1 }
 
 
-#define BSP_BUTTON_0   BUTTON_0
-#define BSP_BUTTON_1   BUTTON_1
+//#define BSP_BUTTON_0   BUTTON_0
+//#define BSP_BUTTON_1   BUTTON_1
 
 #define RX_PIN_NUMBER  13
 #define TX_PIN_NUMBER  18

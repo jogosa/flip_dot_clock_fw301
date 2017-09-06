@@ -9,7 +9,7 @@
 * display weather info @QM2VU5
 * countdown timer mode @LJICQZ
 * bro mode
-* button functions @X382K2
+
 
 
 

@@ -68,7 +68,8 @@
 #include "app_util_platform.h"
 #include "bsp.h"
 #include "bsp_btn_ble.h"
-
+#include "nrf_drv_gpiote.h"
+ 
 #define NRF_LOG_MODULE_NAME "APP"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -202,6 +203,12 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define MINUTES_ONLY 				'8'
 #define DATE                '9'
 #define PAUSE                                   'A'
+#define COUNTDOWNT      'W'
+
+
+#define NORMALMODE  1
+#define COUNTDOWNTIMERMODE  2
+#define DRAWMODE    3
 
 #define HRS_24    				'1'
 #define HRS_12    				'0'
@@ -387,8 +394,8 @@ uint8_t display_buffer[21] =
     0xee, 0xb4, 0x72, 0xa5, 0xbb, 0x21, 0x0d//bro3
 };
 
-bool countdown_timer_running=false,countdown_timer_setup_mode=false,draw_mode=false, time_correct=false, dark_mode_check=false;
-uint8_t countm=0, current_bro=BRO0, brocount=1;
+bool countdown_timer_running=false,countdown_timer_setup_mode=false, time_correct=false, dark_mode_check=false;
+uint8_t countm=0, current_bro=BRO0, brocount=1,display_status=0,operation_mode=0;
 uint16_t refresh_speed_scroll, countdown_timer=0,times_ups=0;
 uint32_t number_handler_status=0;
 
@@ -469,50 +476,11 @@ const uint8_t sleep_img[7] = {0x00, 0x00, 0x77, 0x00, 0x08, 0x00, 0x00};
 const uint8_t deadline_timer_img[7] = {0x3E, 0x22, 0x14, 0x08, 0x1C, 0x3E, 0x3E};
 const uint8_t countdown_timer_img[7] = {0x00, 0x3E, 0x14, 0x08, 0x14, 0x3E, 0x00};
 const uint8_t calendar_img[7] = {0x00, 0x2A, 0x00, 0x2A, 0x00, 0x00, 0x00};
+const uint8_t reset_img[7] = {0x00, 0x22, 0x14, 0x08, 0x14, 0x22, 0x00};
 
 int32_t divRoundClosest(const int32_t n, const int32_t d)
 {
     return ((n < 0) ^ (d < 0)) ? ((n - d/2)/d) : ((n + d/2)/d);
-}
-
-void init_gpio(void)
-{
-
-    nrf_gpio_cfg(
-        RS_485_DIR,
-        NRF_GPIO_PIN_DIR_OUTPUT,
-        NRF_GPIO_PIN_INPUT_CONNECT,
-        NRF_GPIO_PIN_NOPULL,
-        NRF_GPIO_PIN_S0S1,
-        NRF_GPIO_PIN_NOSENSE);
-
-    nrf_gpio_cfg(
-        AMB_LT_INT,
-        NRF_GPIO_PIN_DIR_INPUT,
-        NRF_GPIO_PIN_INPUT_CONNECT,
-        NRF_GPIO_PIN_PULLUP,
-        NRF_GPIO_PIN_S0S1,
-        NRF_GPIO_PIN_SENSE_LOW);
-
-    nrf_gpio_cfg(
-        MIN_INT,
-        NRF_GPIO_PIN_DIR_INPUT,
-        NRF_GPIO_PIN_INPUT_CONNECT,
-        NRF_GPIO_PIN_PULLUP,
-        NRF_GPIO_PIN_S0S1,
-        NRF_GPIO_PIN_SENSE_LOW);
-
-    nrf_gpio_cfg(
-        SEC_INT_CALIB_OUT,
-        NRF_GPIO_PIN_DIR_INPUT,
-        NRF_GPIO_PIN_INPUT_CONNECT,
-        NRF_GPIO_PIN_PULLUP,
-        NRF_GPIO_PIN_S0S1,
-        NRF_GPIO_PIN_SENSE_LOW);
-
-
-    nrf_gpio_pin_write(RS_485_DIR,1);//enable tx on the RS-485
-
 }
 
 void i2c_tx(uint8_t addr, uint8_t const * p_data, uint8_t length, bool no_stop)
@@ -533,17 +501,52 @@ void i2c_rx(uint8_t addr, uint8_t * p_data, uint8_t length)
     while (m_xfer_done == false);
 }
 
-
-
-static void calibration_enter(void)
+//max input size 256 bytes
+static void ee_i2c_mass_write(uint8_t addr, uint8_t *datax, uint8_t size)
 {
+    uint8_t eepage[18]="";
+    uint8_t i,g,pagescount;
 
-    //RTC CALIB ENTRY CODE STARTS HERE
+    pagescount=size/16;
 
-    const uint8_t RTC_ENTER_CALIB[2]= {RTC_CTL2,0x23}; // SECONDS OUTPUT NOW OUTPUTS 4096HZ
-    i2c_tx(PCF85063TP,RTC_ENTER_CALIB,sizeof(RTC_ENTER_CALIB), false);
+    for (g = 0; g < pagescount; g++)
+    {
+        eepage[0]=(g*16);//memory address
 
+        for (i = 0; i < 16; i++)
+        {
+            eepage[i+1]=datax[i+(g*16)];
+        }
+        i2c_tx(addr, eepage, 17, false);
+        nrf_delay_ms(6);
+    }
 }
+
+static void store_ee_settings(void)
+{
+    ee_i2c_mass_write(EEPROM,ee_settings,sizeof(ee_settings));
+}
+static void read_ee_settings(void)
+{
+    uint8_t read_ee[1] = {0};
+
+    i2c_tx(EEPROM,read_ee,sizeof(read_ee),true);
+    i2c_rx(EEPROM,ee_settings,sizeof(ee_settings));
+}
+
+static void store_ee_settings_partial(uint8_t memaddr, uint8_t val)
+{
+    ee_settings[memaddr]=val;
+  
+    uint8_t storedata[2]="";
+    storedata[0]=memaddr;
+    storedata[1]=val;
+
+    i2c_tx(EEPROM,storedata,sizeof(storedata),false);
+    nrf_delay_ms(6);
+    read_ee_settings();
+}
+
 
 static void uart_send(uint8_t * p_data, uint16_t length)
 {
@@ -599,6 +602,196 @@ static void disp_refresh(void)
     }
     uart_send(disp_tx_buffer,sizeof(disp_tx_buffer));
 }
+
+static void disp_invert_buffer(uint8_t bro)
+{
+    uint8_t i;
+    for (i=0; i<7; i++)
+    {
+        display_buffer[i+bro_disp_buf_addr[bro]] = ~display_buffer[i+bro_disp_buf_addr[bro]];
+    }
+}
+
+static void display_img(const uint8_t *image, uint8_t invert, uint8_t bro)
+{
+    uint8_t i;
+    
+
+    //copy from one buffer to the other
+    for (i=0; i<7; i++)
+    {
+        display_buffer[i+bro_disp_buf_addr[bro]]=image[i];
+    }
+
+    if(invert)
+    {
+        disp_invert_buffer(bro);
+    }
+    disp_refresh();
+}
+
+static void display_ddl_reset_anim(void)
+{ 
+    display_img(deadline_timer_img, false, BRO0);
+    display_img(deadline_timer_img, false, BRO1);
+    display_img(deadline_timer_img, false, BRO2);
+    nrf_delay_ms(DISP_NOTIFY_MS);
+    display_img(reset_img, false, BRO0);
+    display_img(reset_img, false, BRO1);
+    display_img(reset_img, false, BRO2);   
+    nrf_delay_ms(DISP_NOTIFY_MS);
+    nrf_delay_ms(DISP_NOTIFY_MS);
+}
+
+static void DEADLINEDOTS_reset(void)
+{
+                  uint8_t d;
+                    store_ee_settings_partial(ee_ddl_status, RESET);
+
+                    for(d=0; d<6; d++)//find which of the slots had deadlinedots programmed
+                    {
+                      if(ee_settings[ee_show1+d]==DEADLINEDOTS)
+                      {
+                        store_ee_settings_partial(ee_show1+d, NOTHING);
+                        break;
+                      }
+                    }
+                    ble_nus_string_send(&m_nus,"DDL RESET\n",10);
+                    display_ddl_reset_anim();
+}
+
+static void buttons_int_enable(void)
+{
+    nrf_drv_gpiote_in_event_enable(BUTTON_RIGHT, true);
+    nrf_drv_gpiote_in_event_enable(BUTTON_LEFT, true);
+}
+
+static void buttons_int_disable(void)
+{
+    nrf_drv_gpiote_in_event_enable(BUTTON_RIGHT, false);
+    nrf_drv_gpiote_in_event_enable(BUTTON_LEFT, false);
+}
+
+void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+{
+    buttons_int_disable();
+
+    if(operation_mode==DRAWMODE)
+    {
+        //do nothing
+    }
+    else if(operation_mode==COUNTDOWNTIMERMODE)
+    {
+            if(pin==BUTTON_RIGHT)
+            {
+                ///e/
+            }
+            else if(pin==BUTTON_LEFT)
+            {
+                ///e/
+            }
+    }
+    else if(operation_mode==NORMALMODE)
+    {
+        if(display_status==DEADLINEDOTS && ee_settings[ee_ddl_status]==ENDED)
+        {
+            if(pin==BUTTON_RIGHT)
+            {
+                DEADLINEDOTS_reset();
+            }
+            else if(pin==BUTTON_LEFT)
+            {
+                 //do nothing
+            }
+        }
+        else
+        {
+            ///e/ countdown timer ops
+        }
+    }
+    else
+    {
+        //do nothing
+    }
+
+    buttons_int_enable();
+}
+
+void init_gpio(void)
+{
+
+    ret_code_t err_code;
+    err_code = nrf_drv_gpiote_init();
+    APP_ERROR_CHECK(err_code);
+
+
+
+    nrf_gpio_cfg(
+        RS_485_DIR,
+        NRF_GPIO_PIN_DIR_OUTPUT,
+        NRF_GPIO_PIN_INPUT_CONNECT,
+        NRF_GPIO_PIN_NOPULL,
+        NRF_GPIO_PIN_S0S1,
+        NRF_GPIO_PIN_NOSENSE);
+
+    nrf_gpio_cfg(
+        AMB_LT_INT,
+        NRF_GPIO_PIN_DIR_INPUT,
+        NRF_GPIO_PIN_INPUT_CONNECT,
+        NRF_GPIO_PIN_PULLUP,
+        NRF_GPIO_PIN_S0S1,
+        NRF_GPIO_PIN_SENSE_LOW);
+
+    nrf_gpio_cfg(
+        MIN_INT,
+        NRF_GPIO_PIN_DIR_INPUT,
+        NRF_GPIO_PIN_INPUT_CONNECT,
+        NRF_GPIO_PIN_PULLUP,
+        NRF_GPIO_PIN_S0S1,
+        NRF_GPIO_PIN_SENSE_LOW);
+
+    nrf_gpio_cfg(
+        SEC_INT_CALIB_OUT,
+        NRF_GPIO_PIN_DIR_INPUT,
+        NRF_GPIO_PIN_INPUT_CONNECT,
+        NRF_GPIO_PIN_PULLUP,
+        NRF_GPIO_PIN_S0S1,
+        NRF_GPIO_PIN_SENSE_LOW);
+
+
+    
+    
+    nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_TOGGLE(true);
+    in_config.pull = NRF_GPIO_PIN_PULLUP;
+    
+    
+    err_code = nrf_drv_gpiote_in_init(BUTTON_RIGHT, &in_config, in_pin_handler);
+    APP_ERROR_CHECK(err_code);
+    
+    err_code = nrf_drv_gpiote_in_init(BUTTON_LEFT, &in_config, in_pin_handler);
+    APP_ERROR_CHECK(err_code);
+    
+    
+    nrf_gpio_pin_write(RS_485_DIR,true);//enable tx on the RS-485
+
+}
+
+
+
+
+
+static void calibration_enter(void)
+{
+
+    //RTC CALIB ENTRY CODE STARTS HERE
+
+    const uint8_t RTC_ENTER_CALIB[2]= {RTC_CTL2,0x23}; // SECONDS OUTPUT NOW OUTPUTS 4096HZ
+    i2c_tx(PCF85063TP,RTC_ENTER_CALIB,sizeof(RTC_ENTER_CALIB), false);
+
+}
+
+
+
 
 static void disp_clear_buffer(uint8_t bro)
 {
@@ -744,79 +937,15 @@ static void PCF85063_init(void)
 
 
 
-//max input size 256 bytes
-static void ee_i2c_mass_write(uint8_t addr, uint8_t *datax, uint8_t size)
-{
-    uint8_t eepage[18]="";
-    uint8_t i,g,pagescount;
-
-    pagescount=size/16;
-
-    for (g = 0; g < pagescount; g++)
-    {
-        eepage[0]=(g*16);//memory address
-
-        for (i = 0; i < 16; i++)
-        {
-            eepage[i+1]=datax[i+(g*16)];
-        }
-        i2c_tx(addr, eepage, 17, false);
-        nrf_delay_ms(6);
-    }
-}
 
 
 
-static void disp_invert_buffer(uint8_t bro)
-{
-    uint8_t i;
-    for (i=0; i<7; i++)
-    {
-        display_buffer[i+bro_disp_buf_addr[bro]] = ~display_buffer[i+bro_disp_buf_addr[bro]];
-    }
-}
 
-static void display_img(const uint8_t *image, uint8_t invert, uint8_t bro)
-{
-    uint8_t i;
-    
 
-    //copy from one buffer to the other
-    for (i=0; i<7; i++)
-    {
-        display_buffer[i+bro_disp_buf_addr[bro]]=image[i];
-    }
 
-    if(invert)
-    {
-        disp_invert_buffer(bro);
-    }
-    disp_refresh();
-}
 
-static void store_ee_settings(void)
-{
-    ee_i2c_mass_write(EEPROM,ee_settings,sizeof(ee_settings));
-}
-static void read_ee_settings(void)
-{
-    uint8_t read_ee[1] = {0};
 
-    i2c_tx(EEPROM,read_ee,sizeof(read_ee),true);
-    i2c_rx(EEPROM,ee_settings,sizeof(ee_settings));
-}
-static void store_ee_settings_partial(uint8_t memaddr, uint8_t val)
-{
-    ee_settings[memaddr]=val;
-  
-    uint8_t storedata[2]="";
-    storedata[0]=memaddr;
-    storedata[1]=val;
 
-    i2c_tx(EEPROM,storedata,sizeof(storedata),false);
-    nrf_delay_ms(6);
-    read_ee_settings();
-}
 static void write_default_ee_settings(void)
 {
 
@@ -1038,7 +1167,7 @@ static void disp_fill_buffer(uint8_t bro)
 
 static void display_pixel(uint8_t x, uint8_t y, bool color,uint8_t bro)
 {
-    if(draw_mode)
+    if(operation_mode==DRAWMODE)
     {
         if(color)
         {
@@ -1405,49 +1534,30 @@ static void DEADLINEDOTS_start(void)
     ble_nus_string_send(&m_nus,"DDL STARTED\n",12);
 }
 
-static void DEADLINEDOTS_reset(void)
-{
-                  uint8_t d;
-                    store_ee_settings_partial(ee_ddl_status, RESET);
 
-                    for(d=0; d<6; d++)//find which of the slots had deadlinedots programmed
-                    {
-                      if(ee_settings[ee_show1+d]==DEADLINEDOTS)
-                      {
-                        store_ee_settings_partial(ee_show1+d, NOTHING);
-                      }
-                    }
-                    ble_nus_string_send(&m_nus,"DDL RESET\n",10);
-}
 
 static void display_ddl_ended_anim(void)
 { 
   uint8_t i;
   for(i=0; i<4; i++)
   {
-
-    
-    
-    display_img(deadline_timer_img, false, BRO0);
-    display_img(deadline_timer_img, false, BRO1);
-    display_img(deadline_timer_img, false, BRO2);
-    nrf_delay_ms(DISP_NOTIFY_MS);
-
-    disp_clear_buffer(BRO0);
-    disp_clear_buffer(BRO1);
-    disp_clear_buffer(BRO2);
-    disp_refresh();    
-    
-    ///d/ needs better implementation of button
-    if(!nrf_gpio_pin_read(BUTTON_0)||!nrf_gpio_pin_read(BUTTON_1))
+    if(ee_settings[ee_ddl_status]==ENDED)
     {
-      DEADLINEDOTS_reset();
-      break;
+        display_img(deadline_timer_img, false, BRO0);
+        display_img(deadline_timer_img, false, BRO1);
+        display_img(deadline_timer_img, false, BRO2);
+        nrf_delay_ms(DISP_NOTIFY_MS);
+
+        disp_clear_buffer(BRO0);
+        disp_clear_buffer(BRO1);
+        disp_clear_buffer(BRO2);
+        disp_refresh();    
+        
+        nrf_delay_ms(DISP_NOTIFY_MS);
     }
-    
-    nrf_delay_ms(DISP_NOTIFY_MS);
   }
 }
+
 /*
 static void display_countdown_timer_ended_anim(void)
 { 
@@ -1465,8 +1575,8 @@ static void display_countdown_timer_ended_anim(void)
     disp_refresh();
     nrf_delay_ms(DISP_NOTIFY_MS);
   }
-}
-*/
+}*/
+
 static void check_darknightmode(void)
 {
   if(bsp_board_led_state_get(0) || bsp_board_led_state_get(1) || bsp_board_led_state_get(2))
@@ -2239,13 +2349,13 @@ static void command_responder(uint8_t * bt_received_string_data)
             case 'c'://@ONMESS
                 if(bt_received_string_data[3]=='0')
                 {
-                    draw_mode=false;
+                    operation_mode=NORMALMODE;///E/UPDATE DOCUMENTATION ON THIS
                     command_reply_ok();
                     // exit
                 }
                 else if(bt_received_string_data[3]=='1')
                 {
-                    draw_mode=true;
+                    operation_mode=DRAWMODE;
                     disp_clear_buffer(BRO0);
                     disp_clear_buffer(BRO1);
                     disp_clear_buffer(BRO2);
@@ -2310,6 +2420,11 @@ static void command_responder(uint8_t * bt_received_string_data)
             {
               
                 PCF85063_gettime();
+
+
+                nrf_gpio_pin_write(LED_BLUE,!false);//disable blue led for ambient light sensor test
+                nrf_delay_ms(100);
+
                 check_darknightmode();
                      
                 uint8_t reply_string[37]="pq,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*\n";
@@ -2317,8 +2432,8 @@ static void command_responder(uint8_t * bt_received_string_data)
                 reply_string[5]=CURRENT_VERSION_TOKEN;//VERSION
                 reply_string[7]=current_bro+'0';//BRONUMBER
                 reply_string[9]=brocount+'0';//BROTOTAL                                            
-                reply_string[11]=dark_mode_check+'0';// should read true when dark //WONT READ CORRECTLY IF THE LED IS LIT
-                reply_string[13]=bsp_board_led_state_get(0)+'0';//BLUE LED   should read true    
+                reply_string[11]=dark_mode_check+'0';// should read true when dark 
+                reply_string[13]=bsp_board_led_state_get(0)+'0';//BLUE LED   should read false always
                 reply_string[15]=bsp_board_led_state_get(1)+'0';//GREEN LED                   
                 reply_string[17]=bsp_board_led_state_get(2)+'0';//RED LED        
                 reply_string[19]=nrf_gpio_pin_read(SEC_INT_CALIB_OUT)+'0';//clock pin    
@@ -2342,10 +2457,23 @@ static void command_responder(uint8_t * bt_received_string_data)
                     reply_string[29]=AA812_check_ID(AA812_RIGHT)+'0';// should read false
                 }
                 reply_string[31]=time_correct+'0';// should read true if time correct
-                reply_string[33]=!nrf_gpio_pin_read(BUTTON_0)+'0';// reads true if button0 pressed
-                reply_string[35]=!nrf_gpio_pin_read(BUTTON_1)+'0';// reads true if button1 pressed
+                reply_string[33]=!nrf_gpio_pin_read(BUTTON_RIGHT)+'0';// reads true if button0 pressed
+                reply_string[35]=!nrf_gpio_pin_read(BUTTON_LEFT)+'0';// reads true if button1 pressed
+
+
+
+
+                ///e/display_status=0,showslot_status=0,operation_mode=0
+
+
+
+
+
+
 
                 ble_nus_string_send(&m_nus,reply_string,sizeof(reply_string));
+
+                nrf_gpio_pin_write(LED_BLUE,!true);
 
                 if(ee_settings[ee_sys_calibrationtoken]!='1')
                 {
@@ -2609,7 +2737,7 @@ static void command_responder(uint8_t * bt_received_string_data)
             {
                 uint8_t reply_string18[5]="cc,*\n";
 
-                if(draw_mode)
+                if(operation_mode==DRAWMODE)
                 {
                     reply_string18[3]='1';
                 }
@@ -2847,7 +2975,7 @@ void display_dots(unsigned char numx, unsigned char invert)
 //to-do: remake for bro system
 static void show_message(uint8_t howlong)
 {
-
+    display_status=MESSAGE;
 
 
     /*
@@ -2884,6 +3012,7 @@ static void show_message(uint8_t howlong)
         display_symbol(' ',refresh_speed_time_sep,0);
 
     */
+    display_status=0;
 }
 
 uint32_t display_dots_timeratio(uint32_t timeleft_mins,uint32_t timetotal_mins)
@@ -2916,6 +3045,8 @@ uint32_t display_dots_timeratio(uint32_t timeleft_mins,uint32_t timetotal_mins)
 //@N5UHA7
 static void show_DEADLINEDOTS(uint16_t howlong_ms)
 {
+    display_status=DEADLINEDOTS;
+
     uint16_t refreshes, i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
 
@@ -2996,12 +3127,16 @@ static void show_DEADLINEDOTS(uint16_t howlong_ms)
       display_img(bad_clock_img, false, BRO0);
       nrf_delay_ms(DISP_NOTIFY_MS);
     }
+
+    display_status=0;
     
 }
 
 //@BKWMI0
 static void show_date(uint16_t howlong_ms)
 {
+    display_status=DATE;
+
     uint16_t refreshes, i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
 
@@ -3046,6 +3181,7 @@ static void show_date(uint16_t howlong_ms)
         display_img(bad_clock_img, false, BRO0);   
         nrf_delay_ms(DISP_NOTIFY_MS);
     }
+    display_status=0;
 }
 
 /*
@@ -3074,7 +3210,7 @@ static void show_countdown_timer(uint16_t howlong_ms)
                 }
               else if(brocount==1)
                 {
-                    display_double_digits_bcd((rtctime[rtctime_day]&mask_day_t)>>4,rtctime[rtctime_day]&mask_day_u,true,BRO0);
+                    display_double_digits_bcd(x,y,true,BRO0);
                 }
             nrf_delay_ms(DISP_REFRESH_MS);  
         } 
@@ -3090,6 +3226,7 @@ static void show_countdown_timer(uint16_t howlong_ms)
 
 static void show_timedots(uint16_t howlong_ms)
 {
+    display_status=TIMEDOTS;
     PCF85063_gettime();
     if(time_correct)
     {
@@ -3103,6 +3240,7 @@ static void show_timedots(uint16_t howlong_ms)
     }
 
     nrf_delay_ms(howlong_ms);
+    display_status=0;
 }
 
 
@@ -3162,6 +3300,7 @@ static bool OPT3001_check_if_nightmode(void)
 
 static void show_timeclock(uint16_t howlong_ms)
 {
+    display_status=TIMECLOCK;
     uint16_t refreshes,i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
 
@@ -3269,13 +3408,14 @@ static void show_timeclock(uint16_t howlong_ms)
         display_img(bad_clock_img, false, BRO0);
         nrf_delay_ms(DISP_NOTIFY_MS); 
     }
-
+    display_status=0;
 }
 //
 
 
 static void show_minutes_only(uint16_t howlong_ms)
 {
+    display_status=MINUTES_ONLY;
     uint16_t refreshes, i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
     PCF85063_gettime();
@@ -3298,11 +3438,13 @@ static void show_minutes_only(uint16_t howlong_ms)
         display_img(bad_clock_img, false, BRO0);
         nrf_delay_ms(DISP_NOTIFY_MS); 
     }
+    display_status=0;
 
 }
 
 static void show_hours_only(uint16_t howlong_ms)
 {
+    display_status=HOURS_ONLY;
     uint16_t refreshes, i;
     refreshes = howlong_ms/DISP_REFRESH_MS;
     PCF85063_gettime();
@@ -3332,11 +3474,13 @@ static void show_hours_only(uint16_t howlong_ms)
         display_img(bad_clock_img, false, BRO0);
         nrf_delay_ms(DISP_NOTIFY_MS); 
     }
+    display_status=0;
 
 }
 //@QD08WZ
 static void show_imagedots(uint16_t howlong_ms)
 {
+    display_status=IMAGEDOTS;
     uint8_t i;
 
     read_ee_settings();
@@ -3351,16 +3495,16 @@ static void show_imagedots(uint16_t howlong_ms)
     disp_refresh();
 
     nrf_delay_ms(howlong_ms); 
-
+    display_status=0;
 }
 
 //@QM2VU5
 static void show_weather(uint16_t howlong_ms)
 {
+    display_status=WEATHER;
 
 
-
-
+    display_status=0;
 }
 //done
 
@@ -3417,9 +3561,14 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
 {
   check_darknightmode();
   
-    if(draw_mode)
+    if(operation_mode==DRAWMODE)
     {
       
+    }
+    else if (operation_mode==COUNTDOWNTIMERMODE)
+    {
+        display_status=COUNTDOWNT;
+////        show_countdown_timer(DISP_REFRESH_MS);
     }
     else if((!(dark_mode_check&&(ee_settings[ee_darknightmode]-'0'))) && (!((ee_settings[ee_timenightmode]-'0') && check_timesleepmode())))
     {
@@ -3466,7 +3615,7 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
         }
 
     }
-    else
+    else//DEVICE IS IN NIGHTMODE
     {
       
             display_img(sleep_img, false, BRO0);
@@ -3975,15 +4124,15 @@ static void buttons_leds_init(bool * p_erase_bonds)
     APP_ERROR_CHECK(err_code);
 
 ////d//button actions(non ble)//see usage example
-//    err_code = bsp_event_to_button_action_assign(BUTTON_0, BSP_BUTTON_ACTION_PUSH, EVENT_COUNTDOWNTIMER_ADD_ONE);
+//    err_code = bsp_event_to_button_action_assign(BUTTON_RIGHT, BSP_BUTTON_ACTION_PUSH, EVENT_COUNTDOWNTIMER_ADD_ONE);
 //    APP_ERROR_CHECK(err_code);
 
 
-//    err_code = bsp_event_to_button_action_assign(BUTTON_0, BSP_BUTTON_ACTION_LONG_PUSH, EVENT_COUNTDOWNTIMER_ADD_TEN);
+//    err_code = bsp_event_to_button_action_assign(BUTTON_RIGHT, BSP_BUTTON_ACTION_LONG_PUSH, EVENT_COUNTDOWNTIMER_ADD_TEN);
 //    APP_ERROR_CHECK(err_code);
 
 
-//    err_code = bsp_event_to_button_action_assign(BUTTON_1, BSP_BUTTON_ACTION_PUSH,  EVENT_COUNTDOWNTIMER_CLEAR);
+//    err_code = bsp_event_to_button_action_assign(BUTTON_LEFT, BSP_BUTTON_ACTION_PUSH,  EVENT_COUNTDOWNTIMER_CLEAR);
 //    APP_ERROR_CHECK(err_code);
 
 ////d//
@@ -4037,6 +4186,8 @@ static void paranoid_checks(void)
   }
 }
 
+
+
 /**@brief Application main function.
  */
 int main(void)
@@ -4054,7 +4205,7 @@ int main(void)
     log_init();
     buttons_leds_init(&erase_bonds);
     
-    draw_mode=true;
+    operation_mode=DRAWMODE;
      nrf_gpio_pin_write(LED_RED,!true);   
     disp_clear_buffer(BRO0);
     display_pixel(0,2,true,BRO0);      
@@ -4068,7 +4219,7 @@ int main(void)
     display_pixel(2,2,false,BRO0);
     
     nrf_gpio_pin_write(LED_RED,!false);
-    draw_mode=false;  
+    operation_mode=NORMALMODE;  
     ee_check();
     
     ble_stack_init();
@@ -4083,6 +4234,7 @@ int main(void)
     err_code = ble_advertising_start(BLE_ADV_MODE_DIRECTED_SLOW);//was BLE_ADV_MODE_FAST
     APP_ERROR_CHECK(err_code);
 
+    buttons_int_enable();
 
     // Enter main loop.
     for (;;)
