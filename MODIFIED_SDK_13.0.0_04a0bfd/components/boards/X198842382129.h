@@ -31,7 +31,7 @@ extern "C" {
 
 
 // LEDs definitions for PCA10040
-#define LEDS_NUMBER    3
+//#define LEDS_NUMBER    3
 
 #define LED_0          25	//BLUE
 #define LED_1          26	//RED
@@ -45,15 +45,15 @@ extern "C" {
   
   
   
-#define LEDS_ACTIVE_STATE 0
+//#define LEDS_ACTIVE_STATE 0
 
-#define LEDS_INV_MASK  LEDS_MASK
+//#define LEDS_INV_MASK  LEDS_MASK
 
-#define LEDS_LIST {LED_0, LED_1, LED_2}
+//#define LEDS_LIST {LED_0, LED_1, LED_2}
 
-#define BSP_LED_0      LED_0
-#define BSP_LED_1      LED_1
-#define BSP_LED_2      LED_2
+//#define BSP_LED_0      LED_0
+//#define BSP_LED_1      LED_1
+//#define BSP_LED_2      LED_2
 
 //#define BUTTONS_NUMBER 2
 

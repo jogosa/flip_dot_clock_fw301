@@ -217,31 +217,7 @@ static uint16_t                         m_ble_nus_max_data_len = BLE_GATT_ATT_MT
 #define STARTED '1'
 #define ENDED '2'
 
-//MUSICAL NOTES
-#define C6         31
-#define Db6         30
-#define D6         28
-#define Eb6         26
-#define E6         25
-#define F6         23
-#define Gb6         22
-#define G6         21
-#define Ab6         20
-#define A6         19
-#define Bb6         18
-#define B6         17
-#define C7         16
-#define Db7         15
-#define D7         14
-#define Eb7         13
-#define E7         12
-#define F7         12
-#define Gb7         11
-#define G7         10
-#define Ab7         10
-#define A7         9
-#define Bb7         9
-#define B7         8
+
 
 // PCF85063TP
 #define PCF85063TP 				0x51
@@ -800,8 +776,22 @@ static void COUNTDOWNTIMER_start(void)
 
 }
 
+static void check_darknightmode(void)
+{
+  if(!nrf_gpio_pin_read(LED_RED) || !nrf_gpio_pin_read(LED_RED) || !nrf_gpio_pin_read(LED_RED))
+  {
+    
+  }
+  else
+  {
+    dark_mode_check = nrf_gpio_pin_read(AMB_LT_INT);
+  }
+}
+
 void seconds_int_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
+    check_darknightmode();
+
   countdowntimer_secs--;
   
   if(countdowntimer_secs==0)
@@ -953,12 +943,16 @@ void init_gpio(void)
 static void calibration_enter(void)
 {
 
+
     COUNTDOWNTIMER_reset();
     buttons_int_disable();
     //RTC CALIB ENTRY CODE STARTS HERE
 
     const uint8_t RTC_ENTER_CALIB[2]= {RTC_CTL2,0x23}; // SECONDS OUTPUT NOW OUTPUTS 4096HZ
     i2c_tx(PCF85063TP,RTC_ENTER_CALIB,sizeof(RTC_ENTER_CALIB), false);
+
+    nrf_gpio_pin_write(LED_GREEN,!true);
+    nrf_gpio_pin_write(LED_BLUE,!true);
 
 }
 
@@ -1045,6 +1039,9 @@ static void calibration_exit(void)
     //RTC CALIB Exit CODE STARTS HERE
     const uint8_t RTC_EXIT_CALIB[2]= {RTC_CTL2,0x26}; // minute and second outputs enabled
     i2c_tx(PCF85063TP,RTC_EXIT_CALIB,sizeof(RTC_EXIT_CALIB), false);
+
+    nrf_gpio_pin_write(LED_GREEN,!true);
+    nrf_gpio_pin_write(LED_BLUE,!true);
 
     buttons_int_enable();
 }
@@ -1726,17 +1723,7 @@ static void display_cdt_ended_anim(void)
   }
 }
 
-static void check_darknightmode(void)
-{
-  if(bsp_board_led_state_get(0) || bsp_board_led_state_get(1) || bsp_board_led_state_get(2))
-  {
-    
-  }
-  else
-  {
-    dark_mode_check = nrf_gpio_pin_read(AMB_LT_INT);
-  }
-}
+
 
 
 
@@ -2611,9 +2598,9 @@ static void command_responder(uint8_t * bt_received_string_data)
                 reply_string[19]=!nrf_gpio_pin_read(BUTTON_LEFT)+'0';// reads true if button1 pressed
                 reply_string[20]=nrf_gpio_pin_read(SEC_INT_CALIB_OUT)+'0';//clock pin  
                 reply_string[21]=dark_mode_check+'0';// should read true when dark 
-                reply_string[22]=bsp_board_led_state_get(0)+'0';//BLUE LED   should read false always
-                reply_string[23]=bsp_board_led_state_get(1)+'0';//GREEN LED                   
-                reply_string[24]=bsp_board_led_state_get(2)+'0';//RED LED    
+                reply_string[22]=!nrf_gpio_pin_read(LED_RED)+'0';//
+                reply_string[23]=!nrf_gpio_pin_read(LED_GREEN)+'0';//                  
+                reply_string[24]=!nrf_gpio_pin_read(LED_BLUE)+'0';//
 
 
                 ble_nus_string_send(&m_nus,reply_string,sizeof(reply_string));
@@ -3725,7 +3712,6 @@ static bool check_timesleepmode(void)
 
 static void display_thing(uint8_t what,uint16_t howlong_ms)
 {
-  check_darknightmode();
   
     if(operation_mode==DRAWMODE)
     {
@@ -3733,7 +3719,6 @@ static void display_thing(uint8_t what,uint16_t howlong_ms)
     }
     else if (operation_mode==COUNTDOWNTIMERMODE)
     {
-        
         show_countdown_timer(200);
     }
     else if((!(dark_mode_check&&(ee_settings[ee_darknightmode]-'0'))) && (!((ee_settings[ee_timenightmode]-'0') && check_timesleepmode())))
@@ -4401,7 +4386,12 @@ int main(void)
     APP_ERROR_CHECK(err_code);
 
     buttons_int_enable();
-
+    
+    nrf_gpio_pin_write(LED_BLUE,!true); 
+    nrf_delay_ms(300);
+    nrf_gpio_pin_write(LED_BLUE,!false); 
+    
+    
     // Enter main loop.
     for (;;)
     {
