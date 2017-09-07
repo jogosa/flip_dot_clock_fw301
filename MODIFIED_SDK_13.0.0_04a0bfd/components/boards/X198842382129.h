@@ -33,15 +33,15 @@ extern "C" {
 // LEDs definitions for PCA10040
 //#define LEDS_NUMBER    3
 
-#define LED_0          25	//BLUE
-#define LED_1          26	//RED
-#define LED_2          27	//GREEN
+//#define LED_0          25	//BLUE
+//#define LED_1          26	//RED
+//#define LED_2          27	//GREEN
 
   
   
-#define LED_BLUE          LED_0	//BLUE
-#define LED_RED          LED_1	//RED
-#define LED_GREEN          LED_2	//GREEN
+#define LED_BLUE          25	//BLUE
+#define LED_RED          26	//RED
+#define LED_GREEN          27	//GREEN
   
   
   

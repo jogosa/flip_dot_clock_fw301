@@ -790,7 +790,7 @@ static void check_darknightmode(void)
 
 void seconds_int_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-    check_darknightmode();
+
 
   countdowntimer_secs--;
   
@@ -875,6 +875,30 @@ void init_gpio(void)
         NRF_GPIO_PIN_NOSENSE);
 
     nrf_gpio_cfg(
+        LED_RED,
+        NRF_GPIO_PIN_DIR_OUTPUT,
+        NRF_GPIO_PIN_INPUT_CONNECT,
+        NRF_GPIO_PIN_NOPULL,
+        NRF_GPIO_PIN_S0D1,
+        NRF_GPIO_PIN_NOSENSE);
+
+    nrf_gpio_cfg(
+        LED_GREEN,
+        NRF_GPIO_PIN_DIR_OUTPUT,
+        NRF_GPIO_PIN_INPUT_CONNECT,
+        NRF_GPIO_PIN_NOPULL,
+        NRF_GPIO_PIN_S0D1,
+        NRF_GPIO_PIN_NOSENSE);
+
+    nrf_gpio_cfg(
+        LED_BLUE,
+        NRF_GPIO_PIN_DIR_OUTPUT,
+        NRF_GPIO_PIN_INPUT_CONNECT,
+        NRF_GPIO_PIN_NOPULL,
+        NRF_GPIO_PIN_S0D1,
+        NRF_GPIO_PIN_NOSENSE);
+
+    nrf_gpio_cfg(
         AMB_LT_INT,
         NRF_GPIO_PIN_DIR_INPUT,
         NRF_GPIO_PIN_INPUT_CONNECT,
@@ -914,8 +938,10 @@ void init_gpio(void)
         NRF_GPIO_PIN_S0S1,
         NRF_GPIO_PIN_SENSE_LOW);
     
-    
-    
+
+    nrf_gpio_pin_write(LED_RED,!false);
+    nrf_gpio_pin_write(LED_GREEN,!false);
+    nrf_gpio_pin_write(LED_BLUE,!false);
     
     
     nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
@@ -1040,8 +1066,8 @@ static void calibration_exit(void)
     const uint8_t RTC_EXIT_CALIB[2]= {RTC_CTL2,0x26}; // minute and second outputs enabled
     i2c_tx(PCF85063TP,RTC_EXIT_CALIB,sizeof(RTC_EXIT_CALIB), false);
 
-    nrf_gpio_pin_write(LED_GREEN,!true);
-    nrf_gpio_pin_write(LED_BLUE,!true);
+    nrf_gpio_pin_write(LED_GREEN,!false);
+    nrf_gpio_pin_write(LED_BLUE,!false);
 
     buttons_int_enable();
 }
@@ -3712,7 +3738,8 @@ static bool check_timesleepmode(void)
 
 static void display_thing(uint8_t what,uint16_t howlong_ms)
 {
-  
+    check_darknightmode();
+    
     if(operation_mode==DRAWMODE)
     {
       
@@ -4318,11 +4345,14 @@ static void ee_check(void)
 {
     if(check_ee_token())
     {
+        nrf_gpio_pin_write(LED_BLUE,!false);
         nrf_gpio_pin_write(LED_GREEN,!true);
+        nrf_gpio_pin_write(LED_RED,!true);
         write_default_ee_settings();
         ble_nus_string_send(&m_nus, "EE_DEFAULTED\n",13);
         nrf_delay_ms(400);
         nrf_gpio_pin_write(LED_GREEN,!false);
+        nrf_gpio_pin_write(LED_RED,!false);
     }
 }
 
@@ -4356,22 +4386,14 @@ int main(void)
     uart_init();
     log_init();
     buttons_leds_init(&erase_bonds);
-    
-    operation_mode=DRAWMODE;
-     nrf_gpio_pin_write(LED_RED,!true);   
-    disp_clear_buffer(BRO0);
-    display_pixel(0,2,true,BRO0);      
-    display_pixel(1,2,true,BRO0);  
-    display_pixel(2,2,true,BRO0);  
+    nrf_gpio_pin_write(LED_RED,!true); 
+
     read_ee_settings();
-    display_pixel(0,2,false,BRO0); 
-    PCF85063_init();
-    display_pixel(1,2,false,BRO0); 
-    OPT3001_init();
-    display_pixel(2,2,false,BRO0);
     
+    PCF85063_init();
+    OPT3001_init();
     nrf_gpio_pin_write(LED_RED,!false);
-    operation_mode=NORMALMODE;  
+ 
     ee_check();
     
     ble_stack_init();
@@ -4381,15 +4403,12 @@ int main(void)
     advertising_init();
     conn_params_init();
 
-
     err_code = ble_advertising_start(BLE_ADV_MODE_DIRECTED_SLOW);//was BLE_ADV_MODE_FAST
     APP_ERROR_CHECK(err_code);
 
     buttons_int_enable();
     
-    nrf_gpio_pin_write(LED_BLUE,!true); 
-    nrf_delay_ms(300);
-    nrf_gpio_pin_write(LED_BLUE,!false); 
+    operation_mode=NORMALMODE;
     
     
     // Enter main loop.
