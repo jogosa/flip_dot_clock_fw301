@@ -5,9 +5,9 @@
 
 
 ### to-do features:
-* display messages @DCX5OH
-* display weather info @QM2VU5
 * bro mode
+* display messages @DCX5OH
+
 
 
 
